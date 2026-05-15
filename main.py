@@ -46,19 +46,20 @@ CONFIG_FILE = "config.json"
 DEFAULT_COOLDOWN = 60
 
 # ================= DATA MANAGEMENT =================
-def load_json(file):
+async def load_json(file):
     if not os.path.exists(file):
-        with open(file, "w") as f:
-            json.dump({}, f)
-    with open(file, "r") as f:
+        async with aiofiles.open(file, "w") as f:
+            await f.write(json.dumps({}, indent=4))
+    async with aiofiles.open(file, "r") as f:
+        content = await f.read()
         try:
-            return json.load(f)
+            return json.loads(content)
         except json.JSONDecodeError:
             return {}
 
-def save_json(file, data):
-    with open(file, "w") as f:
-        json.dump(data, f, indent=4)
+async def save_json(file, data):
+    async with aiofiles.open(file, "w") as f:
+        await f.write(json.dumps(data, indent=4))
 
 # ================= BOT SETUP =================
 intents = discord.Intents.default()
@@ -88,12 +89,12 @@ def set_cooldown(user_id):
     cooldowns[user_id] = time.time()
 
 # ================= ACCOUNT GENERATION =================
-def get_accounts_by_tier(tier):
-    accounts = load_json(ACCOUNTS_FILE)
+async def get_accounts_by_tier(tier):
+    accounts = await load_json(ACCOUNTS_FILE)
     return accounts.get(tier, [])
 
-def generate_account(tier):
-    pool = get_accounts_by_tier(tier)
+async def generate_account(tier):
+    pool = await get_accounts_by_tier(tier)
     if not pool:
         return None
     
@@ -101,12 +102,61 @@ def generate_account(tier):
     account = random.choice(pool)
     
     # Remove used account
-    all_accs = load_json(ACCOUNTS_FILE)
+    all_accs = await load_json(ACCOUNTS_FILE)
     if account in all_accs.get(tier, []):
         all_accs[tier].remove(account)
-        save_json(ACCOUNTS_FILE, all_accs)
+        await save_json(ACCOUNTS_FILE, all_accs)
         return account
     return None
+
+# ================= PERSISTENT VIEWS =================
+class GeneratorView(discord.ui.View):
+    def __init__(self, tier):
+        super().__init__(timeout=None)
+        self.tier = tier
+
+    @discord.ui.button(label="Generate Account", style=discord.ButtonStyle.primary, custom_id="persistent_gen")
+    async def generate_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        tier_role_id = EXOTIC_ROLE_ID if self.tier == "exotic" else PREMIUM_ROLE_ID
+        emoji = EMOJI_EXOTIC if self.tier == "exotic" else EMOJI_PREMIUM
+        color = 0xff6600 if self.tier == "exotic" else 0xffaa00
+        
+        if not discord.utils.get(interaction.user.roles, id=tier_role_id):
+            await interaction.response.send_message(f"{EMOJI_CROSS} You need the correct role.", ephemeral=True)
+            return
+            
+        can_gen, remaining = await check_cooldown_async(interaction.user.id, self.tier)
+        if not can_gen:
+            await interaction.response.send_message(f"{EMOJI_TIMER} Wait {remaining}s.", ephemeral=True)
+            return
+            
+        acc = await generate_account(self.tier)
+        if not acc:
+            await interaction.response.send_message(f"{EMOJI_CROSS} Out of stock.", ephemeral=True)
+            return
+            
+        set_cooldown(interaction.user.id)
+        embed = discord.Embed(title=f"{emoji} {self.tier.capitalize()} Account", description=f"`{acc}`", color=color)
+        try:
+            await interaction.user.send(embed=embed)
+            await interaction.response.send_message("Account sent to DMs!", ephemeral=True)
+        except:
+            await interaction.response.send_message(f"Your account: `{acc}` (Please enable DMs!)", ephemeral=True)
+
+async def check_cooldown_async(user_id, tier="normal"):
+    config = await load_json(CONFIG_FILE)
+    cooldown_seconds = config.get("cooldown", DEFAULT_COOLDOWN)
+    if tier == "exotic":
+        cooldown_seconds = 60
+    elif tier == "premium":
+        cooldown_seconds = 30
+    
+    last_gen = cooldowns.get(user_id, 0)
+    now = time.time()
+    if now - last_gen < cooldown_seconds:
+        remaining = int(cooldown_seconds - (now - last_gen))
+        return False, remaining
+    return True, 0
 
 # ================= COMMANDS =================
 @bot.event
@@ -156,9 +206,9 @@ async def restock(interaction: discord.Interaction, tier: str, file: discord.Att
         await interaction.response.send_message(f"{EMOJI_CROSS} File is empty.", ephemeral=True)
         return
     
-    accounts = load_json(ACCOUNTS_FILE)
+    accounts = await load_json(ACCOUNTS_FILE)
     accounts.setdefault(tier, []).extend(new_accounts)
-    save_json(ACCOUNTS_FILE, accounts)
+    await save_json(ACCOUNTS_FILE, accounts)
     
     await interaction.response.send_message(f"{EMOJI_CHECK} Restocked `{len(new_accounts)}` accounts into **{tier}** tier.", ephemeral=False)
 
@@ -172,12 +222,12 @@ async def generate(interaction: discord.Interaction):
     elif discord.utils.get(user.roles, id=EXOTIC_ROLE_ID):
         tier = "exotic"
     
-    can_gen, remaining = check_cooldown(user.id, tier)
+    can_gen, remaining = await check_cooldown_async(user.id, tier)
     if not can_gen:
         await interaction.response.send_message(f"{EMOJI_TIMER} Cooldown! Try again in {remaining} seconds.", ephemeral=True)
         return
     
-    account = generate_account(tier)
+    account = await generate_account(tier)
     if not account:
         await interaction.response.send_message(f"{EMOJI_CROSS} No {tier} accounts left! Ask an admin to `/restock`.", ephemeral=True)
         return
@@ -196,7 +246,7 @@ async def generate(interaction: discord.Interaction):
 # /livestock
 @bot.tree.command(name="livestock", description="Show available account counts")
 async def livestock(interaction: discord.Interaction):
-    accounts = load_json(ACCOUNTS_FILE)
+    accounts = await load_json(ACCOUNTS_FILE)
     normal = len(accounts.get("normal", []))
     exotic = len(accounts.get("exotic", []))
     premium = len(accounts.get("premium", []))
@@ -220,8 +270,7 @@ async def exoticpanel(interaction: discord.Interaction):
         return
     
     embed = discord.Embed(title=f"{EMOJI_EXOTIC} **EXOTIC GENERATOR** {EMOJI_EXOTIC}", description="Generate high-quality accounts every **1 minute**. Click below!", color=0xff6600)
-    view = discord.ui.View()
-    view.add_item(discord.ui.Button(label="Generate Exotic Account", style=discord.ButtonStyle.primary, custom_id="generate_exotic"))
+    view = GeneratorView(tier="exotic")
     await channel.send(embed=embed, view=view)
     await interaction.response.send_message(f"{EMOJI_CHECK} Exotic panel posted.", ephemeral=True)
 
@@ -238,8 +287,7 @@ async def premium_generate_panel(interaction: discord.Interaction):
         return
     
     embed = discord.Embed(title=f"{EMOJI_PREMIUM} **PREMIUM GENERATOR** {EMOJI_PREMIUM}", description="Generate **elite** accounts every 30 seconds. Click below!", color=0xffaa00)
-    view = discord.ui.View()
-    view.add_item(discord.ui.Button(label="Generate Premium Account", style=discord.ButtonStyle.success, custom_id="generate_premium"))
+    view = GeneratorView(tier="premium")
     await channel.send(embed=embed, view=view)
     await interaction.response.send_message(f"{EMOJI_CHECK} Premium panel posted.", ephemeral=True)
 
@@ -254,9 +302,9 @@ async def setcooldown(interaction: discord.Interaction, seconds: int):
     if not discord.utils.get(interaction.user.roles, id=OWNER_ROLE_ID):
         await interaction.response.send_message(f"{EMOJI_CROSS} Owner only.", ephemeral=True)
         return
-    config = load_json(CONFIG_FILE)
+    config = await load_json(CONFIG_FILE)
     config["cooldown"] = seconds
-    save_json(CONFIG_FILE, config)
+    await save_json(CONFIG_FILE, config)
     await interaction.response.send_message(f"{EMOJI_CHECK} Cooldown set to {seconds}s.", ephemeral=False)
 
 # /addowner
@@ -284,51 +332,6 @@ async def addreseller(interaction: discord.Interaction, member: discord.Member):
         await interaction.response.send_message(f"{EMOJI_CHECK} Added {member.mention} as Reseller.")
     else:
         await interaction.response.send_message(f"{EMOJI_CROSS} Reseller role not found.")
-
-# Button Handlers
-@bot.event
-async def on_interaction(interaction: discord.Interaction):
-    if interaction.type == discord.InteractionType.component:
-        custom_id = interaction.data.get("custom_id")
-        if custom_id == "generate_exotic":
-            if not discord.utils.get(interaction.user.roles, id=EXOTIC_ROLE_ID):
-                await interaction.response.send_message(f"{EMOJI_CROSS} You need the Exotic role.", ephemeral=True)
-                return
-            can_gen, remaining = check_cooldown(interaction.user.id, "exotic")
-            if not can_gen:
-                await interaction.response.send_message(f"{EMOJI_TIMER} Wait {remaining}s.", ephemeral=True)
-                return
-            acc = generate_account("exotic")
-            if not acc:
-                await interaction.response.send_message(f"{EMOJI_CROSS} Out of stock.", ephemeral=True)
-                return
-            set_cooldown(interaction.user.id)
-            embed = discord.Embed(title=f"{EMOJI_EXOTIC} Exotic Account", description=f"`{acc}`", color=0xff6600)
-            try:
-                await interaction.user.send(embed=embed)
-                await interaction.response.send_message("Account sent to DMs!", ephemeral=True)
-            except:
-                await interaction.response.send_message(f"Your account: `{acc}` (Please enable DMs next time!)", ephemeral=True)
-        
-        elif custom_id == "generate_premium":
-            if not discord.utils.get(interaction.user.roles, id=PREMIUM_ROLE_ID):
-                await interaction.response.send_message(f"{EMOJI_CROSS} You need the Premium role.", ephemeral=True)
-                return
-            can_gen, remaining = check_cooldown(interaction.user.id, "premium")
-            if not can_gen:
-                await interaction.response.send_message(f"{EMOJI_TIMER} Wait {remaining}s.", ephemeral=True)
-                return
-            acc = generate_account("premium")
-            if not acc:
-                await interaction.response.send_message(f"{EMOJI_CROSS} Out of stock.", ephemeral=True)
-                return
-            set_cooldown(interaction.user.id)
-            embed = discord.Embed(title=f"{EMOJI_PREMIUM} Premium Account", description=f"`{acc}`", color=0xffaa00)
-            try:
-                await interaction.user.send(embed=embed)
-                await interaction.response.send_message("Account sent to DMs!", ephemeral=True)
-            except:
-                await interaction.response.send_message(f"Your account: `{acc}` (Please enable DMs next time!)", ephemeral=True)
 
 if __name__ == "__main__":
     if not TOKEN:
