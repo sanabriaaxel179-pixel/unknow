@@ -347,15 +347,11 @@ async def exoticpanel(interaction: discord.Interaction):
         await interaction.response.send_message(f"{EMOJI_CROSS} No permission.", ephemeral=True)
         return
     
-    channel = bot.get_channel(EXOTIC_PANEL_CHANNEL_ID)
-    if not channel:
-        await interaction.response.send_message(f"{EMOJI_CROSS} Exotic panel channel not found.", ephemeral=True)
-        return
-    
+    channel = interaction.channel
     embed = discord.Embed(title=f"{EMOJI_EXOTIC} **EXOTIC GENERATOR** {EMOJI_EXOTIC}", description="Generate high-quality accounts every **1 minute**. Click below!", color=0xff6600)
     view = GeneratorView(tier="exotic")
     await channel.send(embed=embed, view=view)
-    await interaction.response.send_message(f"{EMOJI_CHECK} Exotic panel posted.", ephemeral=True)
+    await interaction.response.send_message(f"{EMOJI_CHECK} Exotic panel posted in {channel.mention}.", ephemeral=True)
 
 # /premium generate panel
 @bot.tree.command(name="premium_generate_panel", description="Post the Premium Generator panel")
@@ -364,15 +360,11 @@ async def premium_generate_panel(interaction: discord.Interaction):
         await interaction.response.send_message(f"{EMOJI_CROSS} No permission.", ephemeral=True)
         return
     
-    channel = bot.get_channel(PREMIUM_PANEL_CHANNEL_ID)
-    if not channel:
-        await interaction.response.send_message(f"{EMOJI_CROSS} Premium panel channel not found.", ephemeral=True)
-        return
-    
+    channel = interaction.channel
     embed = discord.Embed(title=f"{EMOJI_PREMIUM} **PREMIUM GENERATOR** {EMOJI_PREMIUM}", description="Generate **elite** accounts every 30 seconds. Click below!", color=0xffaa00)
     view = GeneratorView(tier="premium")
     await channel.send(embed=embed, view=view)
-    await interaction.response.send_message(f"{EMOJI_CHECK} Premium panel posted.", ephemeral=True)
+    await interaction.response.send_message(f"{EMOJI_CHECK} Premium panel posted in {channel.mention}.", ephemeral=True)
 
 # /genkey
 @bot.tree.command(name="genkey", description="Generate a membership key (Owner/Reseller)")
