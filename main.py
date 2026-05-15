@@ -319,31 +319,36 @@ async def premium_generate_panel(interaction: discord.Interaction):
     await interaction.response.send_message(f"{EMOJI_CHECK} Premium panel posted in {channel.mention}.", ephemeral=True)
 
 # /genkey
-@bot.tree.command(name="genkey", description="Generate a membership key (Owner/Reseller)")
-@app_commands.describe(tier="exotic or premium", duration="1d, 1w, 1m, 1y, or lifetime")
-async def genkey(interaction: discord.Interaction, tier: str, duration: str):
+@bot.tree.command(name="genkey", description="Generate a membership key (Reseller+)")
+@app_commands.describe(tier="Choose the tier (Exotic Gen or Premium Gen)", duration="1d, 1w, 1m, 1y, or lifetime")
+@app_commands.choices(tier=[
+    app_commands.Choice(name="Exotic Gen", value="exotic"),
+    app_commands.Choice(name="Premium Gen", value="premium")
+], duration=[
+    app_commands.Choice(name="1 Day", value="1d"),
+    app_commands.Choice(name="1 Week", value="1w"),
+    app_commands.Choice(name="1 Month", value="1m"),
+    app_commands.Choice(name="1 Year", value="1y"),
+    app_commands.Choice(name="Lifetime", value="lifetime")
+])
+async def genkey(interaction: discord.Interaction, tier: app_commands.Choice[str], duration: app_commands.Choice[str]):
     if not (discord.utils.get(interaction.user.roles, id=OWNER_ROLE_ID) or discord.utils.get(interaction.user.roles, id=RESELLER_ROLE_ID)):
         await interaction.response.send_message(f"{EMOJI_CROSS} No permission.", ephemeral=True)
         return
     
-    if tier not in ["exotic", "premium"]:
-        await interaction.response.send_message(f"{EMOJI_CROSS} Tier must be `exotic` or `premium`.", ephemeral=True)
-        return
-    
-    if duration not in ["1d", "1w", "1m", "1y", "lifetime"]:
-        await interaction.response.send_message(f"{EMOJI_CROSS} Invalid duration.", ephemeral=True)
-        return
+    tier_val = tier.value
+    dur_val = duration.value
         
-    key = f"KXRRIED-{tier.upper()}-" + "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=8))
+    key = f"KXRRIED-{tier_val.upper()}-" + "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=8))
     
     data = await load_json(KEYS_FILE)
-    data.setdefault("keys", {})[key] = {"tier": tier, "duration": duration}
+    data.setdefault("keys", {})[key] = {"tier": tier_val, "duration": dur_val}
     await save_json(KEYS_FILE, data)
     
     embed = discord.Embed(title=f"{EMOJI_KEY} Key Generated", color=0x00ff00)
     embed.add_field(name="Key", value=f"`{key}`", inline=False)
-    embed.add_field(name="Tier", value=tier.capitalize(), inline=True)
-    embed.add_field(name="Duration", value=duration, inline=True)
+    embed.add_field(name="Tier", value=tier.name, inline=True)
+    embed.add_field(name="Duration", value=duration.name, inline=True)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # /redeem
@@ -382,14 +387,10 @@ async def redeem(interaction: discord.Interaction, key: str):
     del data["keys"][key]
     await save_json(KEYS_FILE, data)
     
-    embed = discord.Embed(title=f"{EMOJI_CHECK} Key Redeemed!", description=f"You now have **{tier.capitalize()}** membership.", color=0x00ff00)
+    tier_name = "Exotic Gen" if tier == "exotic" else "Premium Gen"
+    embed = discord.Embed(title=f"{EMOJI_CHECK} Key Redeemed!", description=f"You now have **{tier_name}** membership.", color=0x00ff00)
     embed.add_field(name="Expires", value="Never" if expires == "lifetime" else f"<t:{int(expires)}:R>", inline=False)
     await interaction.response.send_message(embed=embed)
-
-# /generate keys alias (Fixed to redirect to genkey or generate as needed)
-@bot.tree.command(name="generate_keys", description="Generate a membership key (Staff Only)")
-async def generate_keys(interaction: discord.Interaction, tier: str, duration: str):
-    await genkey(interaction, tier, duration)
 
 # /setcooldown
 @bot.tree.command(name="setcooldown", description="Set the global cooldown for normal tier")
