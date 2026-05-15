@@ -34,7 +34,7 @@ EMOJI_KEY = "<a:key:1504765531629027338>"
 EMOJI_LIVESTOCK = "<a:globe:1504764717451710484>" # Updated to animated globe as requested
 EMOJI_TIMER = "<a:Clock1:1504765854133260340>"
 EMOJI_STAR = "<a:81437star:1504766360947916930>"
-EMOJI_PREMIUM = "<a:Monster52:1504766603122966609>"
+EMOJI_PREMIUM = "<a:globe:1504764717451710484>"
 EMOJI_EXOTIC = "<a:Monster52:1504766603122966609>"
 
 # File paths
@@ -117,31 +117,48 @@ class GeneratorView(discord.ui.View):
 
     @discord.ui.button(label="Generate Account", style=discord.ButtonStyle.primary, custom_id="persistent_gen")
     async def generate_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        tier_role_id = EXOTIC_ROLE_ID if self.tier == "exotic" else PREMIUM_ROLE_ID
-        emoji = EMOJI_EXOTIC if self.tier == "exotic" else EMOJI_PREMIUM
-        color = 0xff6600 if self.tier == "exotic" else 0xffaa00
+        user = interaction.user
+        channel = interaction.channel
         
-        if not discord.utils.get(interaction.user.roles, id=tier_role_id):
-            await interaction.response.send_message(f"{EMOJI_CROSS} You need the correct role.", ephemeral=True)
+        # Enforce Channel Lock
+        if self.tier == "exotic" and "exotic-gen" not in channel.name:
+            await interaction.response.send_message(f"{EMOJI_CROSS} This button only works in the **exotic-gen** channel!", ephemeral=True)
+            return
+        if self.tier == "premium" and "premium-gen" not in channel.name:
+            await interaction.response.send_message(f"{EMOJI_CROSS} This button only works in the **premium-gen** channel!", ephemeral=True)
+            return
+
+        # Enforce Role Lock
+        role_id = EXOTIC_ROLE_ID if self.tier == "exotic" else PREMIUM_ROLE_ID
+        if not discord.utils.get(user.roles, id=role_id):
+            await interaction.response.send_message(f"{EMOJI_CROSS} You must have **{self.tier.capitalize()} Gen** role to use this!", ephemeral=True)
             return
             
-        can_gen, remaining = await check_cooldown_async(interaction.user.id, self.tier)
+        can_gen, remaining = await check_cooldown_async(user.id, self.tier)
         if not can_gen:
             await interaction.response.send_message(f"{EMOJI_TIMER} Wait {remaining}s.", ephemeral=True)
             return
             
-        acc = await generate_account(self.tier)
-        if not acc:
-            await interaction.response.send_message(f"{EMOJI_CROSS} Out of stock.", ephemeral=True)
+        # Stock Check
+        pool = await get_accounts_by_tier(self.tier)
+        if not pool:
+            await interaction.response.send_message(f"Restock needed.", ephemeral=True)
             return
-            
-        set_cooldown(interaction.user.id)
-        embed = discord.Embed(title=f"{emoji} {self.tier.capitalize()} Account", description=f"`{acc}`", color=color)
+
+        acc = await generate_account(self.tier)
+        set_cooldown(user.id)
+        
+        emoji = EMOJI_EXOTIC if self.tier == "exotic" else EMOJI_PREMIUM
+        enjoy_msg = f"Enjoy Exotic gen" if self.tier == "exotic" else "Enjoy Premium gen"
+        
+        embed = discord.Embed(title=f"{emoji} {self.tier.capitalize()} Gen", description=f"`{acc}`", color=0x00ff00)
+        embed.set_footer(text=enjoy_msg)
+        
         try:
-            await interaction.user.send(embed=embed)
+            await user.send(embed=embed)
             await interaction.response.send_message("Account sent to DMs!", ephemeral=True)
         except:
-            await interaction.response.send_message(f"Your account: `{acc}` (Please enable DMs!)", ephemeral=True)
+            await interaction.response.send_message(f"Your account: `{acc}`\n{enjoy_msg}", ephemeral=True)
 
 async def check_cooldown_async(user_id, tier="normal"):
     config = await load_json(CONFIG_FILE)
@@ -190,6 +207,11 @@ async def check_expirations():
             try:
                 await member.remove_roles(role)
                 print(f"Removed {tier} role from {member.name} (Expired)")
+                # Notify user
+                try:
+                    await member.send(f"Your **{tier.capitalize()} Gen** membership has expired. Visit the server to renew!")
+                except:
+                    pass
             except:
                 pass
         
@@ -260,32 +282,49 @@ async def restock(interaction: discord.Interaction, tier: str, file: discord.Att
 @bot.tree.command(name="generate", description="Generate an account")
 async def generate(interaction: discord.Interaction):
     user = interaction.user
-    tier = "normal"
-    if discord.utils.get(user.roles, id=PREMIUM_ROLE_ID):
-        tier = "premium"
-    elif discord.utils.get(user.roles, id=EXOTIC_ROLE_ID):
+    channel = interaction.channel
+    
+    # Identify tier based on channel or role
+    tier = None
+    if "exotic-gen" in channel.name:
         tier = "exotic"
+    elif "premium-gen" in channel.name:
+        tier = "premium"
+    else:
+        await interaction.response.send_message(f"{EMOJI_CROSS} You can only use this command in the generator channels!", ephemeral=True)
+        return
+
+    # Check for correct role
+    role_id = EXOTIC_ROLE_ID if tier == "exotic" else PREMIUM_ROLE_ID
+    if not discord.utils.get(user.roles, id=role_id):
+        await interaction.response.send_message(f"{EMOJI_CROSS} You must have **{tier.capitalize()} Gen** to use this channel!", ephemeral=True)
+        return
     
     can_gen, remaining = await check_cooldown_async(user.id, tier)
     if not can_gen:
         await interaction.response.send_message(f"{EMOJI_TIMER} Cooldown! Try again in {remaining} seconds.", ephemeral=True)
         return
     
-    account = await generate_account(tier)
-    if not account:
-        await interaction.response.send_message(f"{EMOJI_CROSS} No {tier} accounts left! Ask an admin to `/restock`.", ephemeral=True)
+    # Stock Check
+    pool = await get_accounts_by_tier(tier)
+    if not pool:
+        await interaction.response.send_message(f"Restock needed.", ephemeral=True)
         return
-    
+        
+    account = await generate_account(tier)
     set_cooldown(user.id)
-    embed = discord.Embed(title=f"{EMOJI_KEY} Account Generated ({tier.upper()})", color=0x00ff00)
-    embed.add_field(name="Account", value=f"`{account}`", inline=False)
-    embed.set_footer(text=f"Requested by {user.display_name}")
+    
+    emoji = EMOJI_EXOTIC if tier == "exotic" else EMOJI_PREMIUM
+    enjoy_msg = f"Enjoy Exotic gen" if tier == "exotic" else "Enjoy Premium gen"
+    
+    embed = discord.Embed(title=f"{emoji} {tier.capitalize()} Gen", description=f"`{account}`", color=0x00ff00)
+    embed.set_footer(text=enjoy_msg)
     
     try:
         await user.send(embed=embed)
         await interaction.response.send_message(f"{EMOJI_CHECK} Account sent to your DMs!", ephemeral=True)
     except discord.Forbidden:
-        await interaction.response.send_message(f"{EMOJI_CROSS} I couldn't DM you! Please enable DMs from server members.", ephemeral=True)
+        await interaction.response.send_message(f"Your account: `{account}`\n{enjoy_msg}", ephemeral=True)
 
 # /livestock
 @bot.tree.command(name="livestock", description="Show available account counts")
