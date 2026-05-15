@@ -212,9 +212,9 @@ async def exoticpanel(interaction: discord.Interaction):
     await channel.send(embed=embed, view=view)
     await interaction.response.send_message(f"{EMOJI_CHECK} Exotic panel posted.", ephemeral=True)
 
-# /premiumpanel
-@bot.tree.command(name="premiumpanel", description="Post the Premium Generator panel")
-async def premiumpanel(interaction: discord.Interaction):
+# /premium generate panel
+@bot.tree.command(name="premium_generate_panel", description="Post the Premium Generator panel")
+async def premium_generate_panel(interaction: discord.Interaction):
     if not (discord.utils.get(interaction.user.roles, id=OWNER_ROLE_ID) or discord.utils.get(interaction.user.roles, id=RESELLER_ROLE_ID)):
         await interaction.response.send_message(f"{EMOJI_CROSS} No permission.", ephemeral=True)
         return
@@ -229,6 +229,48 @@ async def premiumpanel(interaction: discord.Interaction):
     view.add_item(discord.ui.Button(label="Generate Premium Account", style=discord.ButtonStyle.success, custom_id="generate_premium"))
     await channel.send(embed=embed, view=view)
     await interaction.response.send_message(f"{EMOJI_CHECK} Premium panel posted.", ephemeral=True)
+
+# /generate keys alias
+@bot.tree.command(name="generate_keys", description="Generate an account (Alias)")
+async def generate_keys(interaction: discord.Interaction):
+    await generate(interaction)
+
+# /setcooldown
+@bot.tree.command(name="setcooldown", description="Set the global cooldown for normal tier")
+async def setcooldown(interaction: discord.Interaction, seconds: int):
+    if not discord.utils.get(interaction.user.roles, id=OWNER_ROLE_ID):
+        await interaction.response.send_message(f"{EMOJI_CROSS} Owner only.", ephemeral=True)
+        return
+    config = load_json(CONFIG_FILE)
+    config["cooldown"] = seconds
+    save_json(CONFIG_FILE, config)
+    await interaction.response.send_message(f"{EMOJI_CHECK} Cooldown set to {seconds}s.", ephemeral=False)
+
+# /addowner
+@bot.tree.command(name="addowner", description="Give Owner role to a user")
+async def addowner(interaction: discord.Interaction, member: discord.Member):
+    if not discord.utils.get(interaction.user.roles, id=OWNER_ROLE_ID):
+        await interaction.response.send_message(f"{EMOJI_CROSS} Owner only.", ephemeral=True)
+        return
+    role = interaction.guild.get_role(OWNER_ROLE_ID)
+    if role:
+        await member.add_roles(role)
+        await interaction.response.send_message(f"{EMOJI_CHECK} Added {member.mention} as Owner.")
+    else:
+        await interaction.response.send_message(f"{EMOJI_CROSS} Owner role not found.")
+
+# /addreseller
+@bot.tree.command(name="addreseller", description="Give Reseller role to a user")
+async def addreseller(interaction: discord.Interaction, member: discord.Member):
+    if not discord.utils.get(interaction.user.roles, id=OWNER_ROLE_ID):
+        await interaction.response.send_message(f"{EMOJI_CROSS} Owner only.", ephemeral=True)
+        return
+    role = interaction.guild.get_role(RESELLER_ROLE_ID)
+    if role:
+        await member.add_roles(role)
+        await interaction.response.send_message(f"{EMOJI_CHECK} Added {member.mention} as Reseller.")
+    else:
+        await interaction.response.send_message(f"{EMOJI_CROSS} Reseller role not found.")
 
 # Button Handlers
 @bot.event
