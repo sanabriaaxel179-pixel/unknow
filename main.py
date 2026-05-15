@@ -111,7 +111,7 @@ def generate_account(tier):
 # ================= COMMANDS =================
 @bot.event
 async def on_ready():
-    print(f"✅ Logged in as {bot.user}")
+    print(f"Logged in as {bot.user}")
     try:
         synced = await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
         print(f"Synced {len(synced)} commands to guild {GUILD_ID}")
