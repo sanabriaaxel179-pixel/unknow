@@ -278,54 +278,6 @@ async def restock(interaction: discord.Interaction, tier: str, file: discord.Att
     
     await interaction.response.send_message(f"{EMOJI_CHECK} Restocked `{len(new_accounts)}` accounts into **{tier}** tier.", ephemeral=False)
 
-# /generate
-@bot.tree.command(name="generate", description="Generate an account")
-async def generate(interaction: discord.Interaction):
-    user = interaction.user
-    channel = interaction.channel
-    
-    # Identify tier based on channel or role
-    tier = None
-    if "exotic-gen" in channel.name:
-        tier = "exotic"
-    elif "premium-gen" in channel.name:
-        tier = "premium"
-    else:
-        await interaction.response.send_message(f"{EMOJI_CROSS} You can only use this command in the generator channels!", ephemeral=True)
-        return
-
-    # Check for correct role
-    role_id = EXOTIC_ROLE_ID if tier == "exotic" else PREMIUM_ROLE_ID
-    if not discord.utils.get(user.roles, id=role_id):
-        await interaction.response.send_message(f"{EMOJI_CROSS} You must have **{tier.capitalize()} Gen** to use this channel!", ephemeral=True)
-        return
-    
-    can_gen, remaining = await check_cooldown_async(user.id, tier)
-    if not can_gen:
-        await interaction.response.send_message(f"{EMOJI_TIMER} Cooldown! Try again in {remaining} seconds.", ephemeral=True)
-        return
-    
-    # Stock Check
-    pool = await get_accounts_by_tier(tier)
-    if not pool:
-        await interaction.response.send_message(f"Restock needed.", ephemeral=True)
-        return
-        
-    account = await generate_account(tier)
-    set_cooldown(user.id)
-    
-    emoji = EMOJI_EXOTIC if tier == "exotic" else EMOJI_PREMIUM
-    enjoy_msg = f"Enjoy Exotic gen" if tier == "exotic" else "Enjoy Premium gen"
-    
-    embed = discord.Embed(title=f"{emoji} {tier.capitalize()} Gen", description=f"`{account}`", color=0x00ff00)
-    embed.set_footer(text=enjoy_msg)
-    
-    try:
-        await user.send(embed=embed)
-        await interaction.response.send_message(f"{EMOJI_CHECK} Account sent to your DMs!", ephemeral=True)
-    except discord.Forbidden:
-        await interaction.response.send_message(f"Your account: `{account}`\n{enjoy_msg}", ephemeral=True)
-
 # /livestock
 @bot.tree.command(name="livestock", description="Show available account counts")
 async def livestock(interaction: discord.Interaction):
