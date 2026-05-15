@@ -39,7 +39,7 @@ EMOJI_EXOTIC = "<a:Monster52:1504766603122966609>"
 
 # File paths
 ACCOUNTS_FILE = "accounts.json"
-USERS_FILE = "users.json"
+KEYS_FILE = "keys.json"
 CONFIG_FILE = "config.json"
 
 # Default cooldown (seconds)
@@ -158,10 +158,54 @@ async def check_cooldown_async(user_id, tier="normal"):
         return False, remaining
     return True, 0
 
+# ================= TASKS =================
+@tasks.loop(minutes=30)
+async def check_expirations():
+    data = await load_json(KEYS_FILE)
+    users = data.get("users", {})
+    changed = False
+    
+    guild = bot.get_guild(GUILD_ID)
+    if not guild:
+        return
+
+    now = datetime.now().timestamp()
+    to_remove = []
+    
+    for user_id, info in users.items():
+        expires = info.get("expires")
+        if expires == "lifetime":
+            continue
+            
+        if now > expires:
+            to_remove.append(user_id)
+            
+    for user_id in to_remove:
+        member = guild.get_member(int(user_id))
+        tier = users[user_id]["tier"]
+        role_id = EXOTIC_ROLE_ID if tier == "exotic" else PREMIUM_ROLE_ID
+        role = guild.get_role(role_id)
+        
+        if member and role:
+            try:
+                await member.remove_roles(role)
+                print(f"Removed {tier} role from {member.name} (Expired)")
+            except:
+                pass
+        
+        del users[user_id]
+        changed = True
+        
+    if changed:
+        data["users"] = users
+        await save_json(KEYS_FILE, data)
+
 # ================= COMMANDS =================
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
+    if not check_expirations.is_running():
+        check_expirations.start()
     print(f"Bot is currently in {len(bot.guilds)} servers:")
     for guild in bot.guilds:
         print(f" - {guild.name} (ID: {guild.id})")
@@ -291,10 +335,78 @@ async def premium_generate_panel(interaction: discord.Interaction):
     await channel.send(embed=embed, view=view)
     await interaction.response.send_message(f"{EMOJI_CHECK} Premium panel posted.", ephemeral=True)
 
-# /generate keys alias
-@bot.tree.command(name="generate_keys", description="Generate an account (Alias)")
-async def generate_keys(interaction: discord.Interaction):
-    await generate(interaction)
+# /genkey
+@bot.tree.command(name="genkey", description="Generate a membership key (Owner/Reseller)")
+@app_commands.describe(tier="exotic or premium", duration="1d, 1w, 1m, 1y, or lifetime")
+async def genkey(interaction: discord.Interaction, tier: str, duration: str):
+    if not (discord.utils.get(interaction.user.roles, id=OWNER_ROLE_ID) or discord.utils.get(interaction.user.roles, id=RESELLER_ROLE_ID)):
+        await interaction.response.send_message(f"{EMOJI_CROSS} No permission.", ephemeral=True)
+        return
+    
+    if tier not in ["exotic", "premium"]:
+        await interaction.response.send_message(f"{EMOJI_CROSS} Tier must be `exotic` or `premium`.", ephemeral=True)
+        return
+    
+    if duration not in ["1d", "1w", "1m", "1y", "lifetime"]:
+        await interaction.response.send_message(f"{EMOJI_CROSS} Invalid duration.", ephemeral=True)
+        return
+        
+    key = f"KXRRIED-{tier.upper()}-" + "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=8))
+    
+    data = await load_json(KEYS_FILE)
+    data.setdefault("keys", {})[key] = {"tier": tier, "duration": duration}
+    await save_json(KEYS_FILE, data)
+    
+    embed = discord.Embed(title=f"{EMOJI_KEY} Key Generated", color=0x00ff00)
+    embed.add_field(name="Key", value=f"`{key}`", inline=False)
+    embed.add_field(name="Tier", value=tier.capitalize(), inline=True)
+    embed.add_field(name="Duration", value=duration, inline=True)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# /redeem
+@bot.tree.command(name="redeem", description="Redeem a membership key")
+async def redeem(interaction: discord.Interaction, key: str):
+    data = await load_json(KEYS_FILE)
+    keys = data.get("keys", {})
+    
+    if key not in keys:
+        await interaction.response.send_message(f"{EMOJI_CROSS} Invalid or expired key.", ephemeral=True)
+        return
+        
+    key_info = keys[key]
+    tier = key_info["tier"]
+    duration = key_info["duration"]
+    
+    # Calculate expiration
+    now = datetime.now()
+    if duration == "1d": expires = (now + timedelta(days=1)).timestamp()
+    elif duration == "1w": expires = (now + timedelta(weeks=1)).timestamp()
+    elif duration == "1m": expires = (now + timedelta(days=30)).timestamp()
+    elif duration == "1y": expires = (now + timedelta(days=365)).timestamp()
+    else: expires = "lifetime"
+    
+    # Give Role
+    role_id = EXOTIC_ROLE_ID if tier == "exotic" else PREMIUM_ROLE_ID
+    role = interaction.guild.get_role(role_id)
+    if not role:
+        await interaction.response.send_message(f"{EMOJI_CROSS} Role not found on server.", ephemeral=True)
+        return
+        
+    await interaction.user.add_roles(role)
+    
+    # Save User
+    data.setdefault("users", {})[str(interaction.user.id)] = {"tier": tier, "expires": expires}
+    del data["keys"][key]
+    await save_json(KEYS_FILE, data)
+    
+    embed = discord.Embed(title=f"{EMOJI_CHECK} Key Redeemed!", description=f"You now have **{tier.capitalize()}** membership.", color=0x00ff00)
+    embed.add_field(name="Expires", value="Never" if expires == "lifetime" else f"<t:{int(expires)}:R>", inline=False)
+    await interaction.response.send_message(embed=embed)
+
+# /generate keys alias (Fixed to redirect to genkey or generate as needed)
+@bot.tree.command(name="generate_keys", description="Generate a membership key (Staff Only)")
+async def generate_keys(interaction: discord.Interaction, tier: str, duration: str):
+    await genkey(interaction, tier, duration)
 
 # /setcooldown
 @bot.tree.command(name="setcooldown", description="Set the global cooldown for normal tier")
