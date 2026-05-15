@@ -112,11 +112,24 @@ def generate_account(tier):
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
+    print(f"Bot is currently in {len(bot.guilds)} servers:")
+    for guild in bot.guilds:
+        print(f" - {guild.name} (ID: {guild.id})")
+
+    # Try Guild Sync (Instant)
     try:
-        synced = await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
+        guild_obj = discord.Object(id=GUILD_ID)
+        synced = await bot.tree.sync(guild=guild_obj)
         print(f"Synced {len(synced)} commands to guild {GUILD_ID}")
     except Exception as e:
-        print(f"Failed to sync commands: {e}")
+        print(f"Guild sync failed: {e}")
+        
+    # Try Global Sync (Backup - can take up to 1 hour)
+    try:
+        synced_global = await bot.tree.sync()
+        print(f"Synced {len(synced_global)} commands globally")
+    except Exception as e:
+        print(f"Global sync failed: {e}")
 
 # Admin: /restock
 @bot.tree.command(name="restock", description="Restock accounts via .txt file")
