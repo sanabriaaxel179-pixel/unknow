@@ -210,7 +210,21 @@ async def escalate(interaction: discord.Interaction, status: str):
         
     new_name = f"{status}-{base_name}"
     await interaction.channel.edit(name=new_name)
-    await interaction.response.send_message(f"Ticket escalated to **{status.capitalize()}**.")
+    
+    # Special logic for Paid status
+    if status == "paid":
+        owner_role = interaction.guild.get_role(OWNER_ROLE_ID)
+        staff_role = interaction.guild.get_role(STAFF_ROLE_ID)
+        
+        # Remove normal staff and add owners only
+        if staff_role:
+            await interaction.channel.set_permissions(staff_role, read_messages=False)
+        if owner_role:
+            await interaction.channel.set_permissions(owner_role, read_messages=True, send_messages=True, manage_messages=True)
+            
+        await interaction.response.send_message(f"Ticket escalated to **{status.capitalize()}**. Only Owners can now see this channel. <@&{OWNER_ROLE_ID}>")
+    else:
+        await interaction.response.send_message(f"Ticket escalated to **{status.capitalize()}**.")
 
 @bot.tree.command(name="check-ticket-id", description="Retrieve a closed ticket's log and transcript", guild=discord.Object(id=GUILD_ID))
 async def check_ticket_id(interaction: discord.Interaction, ticket_id: str):
