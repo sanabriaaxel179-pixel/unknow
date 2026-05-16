@@ -138,7 +138,7 @@ async def ticketpanel(interaction: discord.Interaction):
 
 @bot.tree.command(name="close", description="Close the current ticket", guild=discord.Object(id=GUILD_ID))
 async def close_ticket(interaction: discord.Interaction):
-    if interaction.channel.category_id != TICKET_CATEGORY_ID and "ticket-" not in interaction.channel.name:
+    if interaction.channel.category_id != TICKET_CATEGORY_ID and not any(x in interaction.channel.name for x in ["ticket-", "paid-", "waiting-", "claimed-"]):
         await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
         return
 
@@ -158,7 +158,7 @@ async def close_ticket(interaction: discord.Interaction):
 
 @bot.tree.command(name="add_user", description="Add a user to the current ticket", guild=discord.Object(id=GUILD_ID))
 async def add_user(interaction: discord.Interaction, user: discord.Member):
-    if interaction.channel.category_id != TICKET_CATEGORY_ID and "ticket-" not in interaction.channel.name:
+    if interaction.channel.category_id != TICKET_CATEGORY_ID and not any(x in interaction.channel.name for x in ["ticket-", "paid-", "waiting-", "claimed-"]):
         await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
         return
         
@@ -167,7 +167,7 @@ async def add_user(interaction: discord.Interaction, user: discord.Member):
 
 @bot.tree.command(name="remove_user", description="Remove a user from the current ticket", guild=discord.Object(id=GUILD_ID))
 async def remove_user(interaction: discord.Interaction, user: discord.Member):
-    if interaction.channel.category_id != TICKET_CATEGORY_ID and "ticket-" not in interaction.channel.name:
+    if interaction.channel.category_id != TICKET_CATEGORY_ID and not any(x in interaction.channel.name for x in ["ticket-", "paid-", "waiting-", "claimed-"]):
         await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
         return
     
@@ -182,7 +182,7 @@ async def remove_user(interaction: discord.Interaction, user: discord.Member):
 
 @bot.tree.command(name="rename-ticket", description="Rename the current ticket channel", guild=discord.Object(id=GUILD_ID))
 async def rename_ticket(interaction: discord.Interaction, new_name: str):
-    if interaction.channel.category_id != TICKET_CATEGORY_ID and "ticket-" not in interaction.channel.name:
+    if interaction.channel.category_id != TICKET_CATEGORY_ID and not any(x in interaction.channel.name for x in ["ticket-", "paid-", "waiting-", "claimed-"]):
         await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
         return
     
@@ -200,7 +200,7 @@ async def rename_ticket(interaction: discord.Interaction, new_name: str):
     app_commands.Choice(name="Claimed", value="claimed")
 ])
 async def escalate(interaction: discord.Interaction, status: str):
-    if interaction.channel.category_id != TICKET_CATEGORY_ID and "ticket-" not in interaction.channel.name:
+    if interaction.channel.category_id != TICKET_CATEGORY_ID and not any(x in interaction.channel.name for x in ["ticket-", "paid-", "waiting-", "claimed-"]):
         await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
         return
         
