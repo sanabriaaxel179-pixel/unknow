@@ -216,20 +216,17 @@ async def on_interaction(interaction: discord.Interaction):
     if interaction.type == discord.InteractionType.component:
         custom_id = interaction.data.get("custom_id")
         
-        # Determine tier from custom_id
         tier = None
         if "exotic" in custom_id: tier = "exotic"
         elif "premium" in custom_id: tier = "premium"
         
         if not tier: return
 
-        # Check if user has the specific tier role OR is Co-Owner+
         role_id = config["ROLES"].get(tier.upper())
         if not (discord.utils.get(interaction.user.roles, id=role_id) or is_co_owner_plus(interaction.user)):
             await interaction.response.send_message(f"{config['EMOJIS']['CROSS']} You need the **{tier.capitalize()}** role to use this panel.", ephemeral=True)
             return
 
-        # Channel restriction check
         panel_channel_id = config["CHANNELS"].get(f"{tier.upper()}_PANEL")
         if interaction.channel_id != panel_channel_id:
             await interaction.response.send_message(f"♱ This button only works in the <#{panel_channel_id}> channel!", ephemeral=True)
@@ -246,8 +243,23 @@ async def on_interaction(interaction: discord.Interaction):
             return
             
         set_cooldown(interaction.user.id)
-        embed = black_embed(title=f"{tier.capitalize()} Account", description=f"`{acc}`")
-        await interaction.response.send_message(embed=embed)
+        
+        # Emoji for the tier
+        emoji = config['EMOJIS']['EXOTIC'] if tier == "exotic" else config['EMOJIS']['PREMIUM']
+        
+        # Create embed for DM
+        embed = black_embed(
+            title=f"{emoji} {tier.capitalize()} Account Generated {emoji}",
+            description=f"**Account:** `{acc}`"
+        )
+        embed.set_footer(text=f"Requested by {interaction.user.display_name} | {config['BOT_NAME']}")
+        embed.timestamp = datetime.now()
+
+        try:
+            await interaction.user.send(embed=embed)
+            await interaction.response.send_message(f"{config['EMOJIS']['CHECK']} Success! Check your DMs for your **{tier.capitalize()}** account.", ephemeral=True)
+        except discord.Forbidden:
+            await interaction.response.send_message(f"{config['EMOJIS']['CROSS']} I couldn't DM you! Please open your DMs and try again.", ephemeral=True)
 
 if __name__ == "__main__":
     if TOKEN: bot.run(TOKEN)
