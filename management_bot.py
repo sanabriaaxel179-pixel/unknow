@@ -44,28 +44,39 @@ def black_embed(title=None, description=None):
 async def on_ready():
     print(f"✅ Management Bot logged in as {bot.user}")
     try:
-        synced = await bot.tree.sync()
-        print(f"Synced {len(synced)} commands")
+        guild = discord.Object(id=config["GUILD_ID"])
+        await bot.tree.sync(guild=guild)
+        print(f"Synced commands to Guild {config['GUILD_ID']}")
     except Exception as e:
         print(f"Sync error: {e}")
 
 @bot.event
 async def on_member_join(member):
     welcome_channel_id = config["CHANNELS"]["WELCOME"]
-    if welcome_channel_id == 0: return
     
-    channel = bot.get_channel(welcome_channel_id)
-    if not channel: return
+    # Public Welcome
+    if welcome_channel_id != 0:
+        channel = bot.get_channel(welcome_channel_id)
+        if channel:
+            embed = black_embed(
+                title=f"{config['EMOJIS']['LIVESTOCK']} Welcome to {config['BOT_NAME']} {config['EMOJIS']['LIVESTOCK']}",
+                description=f"Welcome {member.mention} to the server! We hope you enjoy your stay."
+            )
+            embed.set_thumbnail(url=member.display_avatar.url)
+            embed.add_field(name="Member Count", value=f"{member.guild.member_count}", inline=True)
+            embed.set_footer(text=f"ID: {member.id}")
+            await channel.send(embed=embed)
     
-    embed = black_embed(
-        title=f"{config['EMOJIS']['LIVESTOCK']} Welcome to {config['BOT_NAME']} {config['EMOJIS']['LIVESTOCK']}",
-        description=f"Welcome {member.mention} to the server! We hope you enjoy your stay."
-    )
-    embed.set_thumbnail(url=member.display_avatar.url)
-    embed.add_field(name="Member Count", value=f"{member.guild.member_count}", inline=True)
-    embed.set_footer(text=f"ID: {member.id}")
-    
-    await channel.send(embed=embed)
+    # Private DM Welcome
+    try:
+        dm_embed = black_embed(
+            title=f"Welcome to {config['BOT_NAME']}!",
+            description=f"Hello {member.name}, welcome to the server!\n\n**Server Link:** {config['LINKS']['DISCORD']}\n**Support:** {config['LINKS']['SUPPORT']}"
+        )
+        dm_embed.set_thumbnail(url=member.guild.icon.url if member.guild.icon else None)
+        await member.send(embed=dm_embed)
+    except:
+        pass # User has DMs closed
 
 # ================= COMMANDS =================
 
