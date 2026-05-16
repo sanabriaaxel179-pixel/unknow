@@ -58,7 +58,7 @@ async def on_member_join(member):
     if not channel: return
     
     embed = black_embed(
-        title=f"Welcome to {config['BOT_NAME']}",
+        title=f"{config['EMOJIS']['LIVESTOCK']} Welcome to {config['BOT_NAME']} {config['EMOJIS']['LIVESTOCK']}",
         description=f"Welcome {member.mention} to the server! We hope you enjoy your stay."
     )
     embed.set_thumbnail(url=member.display_avatar.url)
