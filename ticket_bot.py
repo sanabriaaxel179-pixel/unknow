@@ -10,6 +10,7 @@ from datetime import datetime
 TOKEN = os.getenv("TICKET_BOT_TOKEN")
 GUILD_ID = 1504472803137814638
 TICKET_CATEGORY_ID = 1505253351846183073
+LOG_CHANNEL_ID = 1504476641353797815
 HEAD_OF_SERVER_ROLE_ID = 1504482136667979877
 CO_OWNER_ROLE_ID = 1505164077658406922
 RESELLER_ROLE_ID = 1504763361169244211
@@ -76,6 +77,17 @@ class TicketDropdown(discord.ui.Select):
         ping_content = f"{interaction.user.mention} <@&{OWNER_ROLE_ID}>"
         await ticket_channel.send(content=ping_content, embed=embed)
         await interaction.followup.send(f"Ticket created: {ticket_channel.mention}", ephemeral=True)
+        
+        # Logging
+        log_channel = guild.get_channel(LOG_CHANNEL_ID)
+        if log_channel:
+            log_embed = discord.Embed(
+                title="🎟️ Ticket Opened",
+                description=f"**User:** {interaction.user.mention} ({interaction.user.id})\n**Channel:** {ticket_channel.mention}\n**Type:** {ticket_type.capitalize()}",
+                color=discord.Color.green(),
+                timestamp=discord.utils.utcnow()
+            )
+            await log_channel.send(embed=log_embed)
 
 
 class TicketView(discord.ui.View):
@@ -153,6 +165,17 @@ async def close_ticket(interaction: discord.Interaction):
     with open(transcript_file, "w", encoding="utf-8") as f:
         for msg in messages:
             f.write(f"[{msg.created_at.strftime('%Y-%m-%d %H:%M:%S')}] {msg.author.name}: {msg.content}\n")
+
+    # Logging closure
+    log_channel = interaction.guild.get_channel(LOG_CHANNEL_ID)
+    if log_channel:
+        log_embed = discord.Embed(
+            title="🔒 Ticket Closed",
+            description=f"**User:** {interaction.user.mention}\n**Channel:** {interaction.channel.name}",
+            color=discord.Color.red(),
+            timestamp=discord.utils.utcnow()
+        )
+        await log_channel.send(embed=log_embed, file=discord.File(transcript_file))
 
     await asyncio.sleep(5)
     await interaction.channel.delete(reason="Ticket closed by user.")
