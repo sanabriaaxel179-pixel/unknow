@@ -33,11 +33,13 @@ async def send_embed(interaction: discord.Interaction, title: str, text: str):
         await interaction.response.send_message("❌ You don't have permission to use this.", ephemeral=True)
         return
 
-    emoji_str = f"<:custom_emoji:{CUSTOM_EMOJI_ID}>"
-    styled_title = f"{emoji_str} {title} {emoji_str}"
+    emoji_str = f"<a:Monster52:{CUSTOM_EMOJI_ID}>"
+    styled_title = f"{emoji_str} **{title}** {emoji_str}"
     
-    # Replace \n with actual newlines if the user typed them as text
-    formatted_text = text.replace("\\n", "\n")
+    # Auto-format the text with the professional arrows
+    lines = text.replace("\\n", "\n").split("\n")
+    formatted_lines = [f"↪ {line.strip()}" if line.strip() else "" for line in lines]
+    formatted_text = "\n".join(formatted_lines)
     
     embed = discord.Embed(
         title=styled_title,
