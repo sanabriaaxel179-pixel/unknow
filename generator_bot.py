@@ -80,14 +80,12 @@ def generate_account(tier):
 async def on_ready():
     print(f"✅ Generator Bot logged in as {bot.user}")
     try:
-        # Sync globally to ensure they show up everywhere
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} commands globally")
     except Exception as e:
         print(f"Sync error: {e}")
 
-# ---- RESTORED ORIGINAL COMMANDS ----
-
+# ---- Admin: /restock ----
 @bot.tree.command(name="restock", description="Restock accounts via .txt file")
 async def restock(interaction: discord.Interaction, tier: str, file: discord.Attachment):
     if not (is_co_owner_plus(interaction.user) or discord.utils.get(interaction.user.roles, id=config["ROLES"]["RESELLER"])):
@@ -104,6 +102,7 @@ async def restock(interaction: discord.Interaction, tier: str, file: discord.Att
     save_json(ACCOUNTS_FILE, accounts)
     await interaction.response.send_message(f"{config['EMOJIS']['CHECK']} Restocked `{len(new_accounts)}` accounts into **{tier}** tier.")
 
+# ---- /generate ----
 @bot.tree.command(name="generate", description="Generate a Rainbow Six Siege account")
 async def generate(interaction: discord.Interaction):
     if not is_co_owner_plus(interaction.user):
@@ -128,36 +127,37 @@ async def generate(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(name="generate_keys", description="Generate a specific tier account")
-@app_commands.describe(tier="The tier to generate (normal, exotic, premium)")
-async def generate_keys(interaction: discord.Interaction, tier: str = "normal"):
+@app_commands.choices(tier=[
+    app_commands.Choice(name="Exotic", value="exotic"),
+    app_commands.Choice(name="Premium", value="premium")
+])
+async def generate_keys(interaction: discord.Interaction, tier: app_commands.Choice[str]):
     if not is_co_owner_plus(interaction.user):
         await interaction.response.send_message(f"{config['EMOJIS']['CROSS']} Only **Co-Owner+** can use this.", ephemeral=True)
         return
     
-    if tier not in ["normal", "exotic", "premium"]:
-        await interaction.response.send_message("Invalid tier.", ephemeral=True)
+    tier_val = tier.value
+    role_id = config["ROLES"].get(tier_val.upper())
+    
+    if not discord.utils.get(interaction.user.roles, id=role_id):
+        await interaction.response.send_message(f"You don't have the {tier_val.capitalize()} role.", ephemeral=True)
         return
 
-    # Check if user has the role for that tier
-    role_id = config["ROLES"].get(tier.upper())
-    if tier != "normal" and not discord.utils.get(interaction.user.roles, id=role_id):
-        await interaction.response.send_message(f"You don't have the {tier.capitalize()} role.", ephemeral=True)
-        return
-
-    can_gen, remaining = check_cooldown(interaction.user.id, tier)
+    can_gen, remaining = check_cooldown(interaction.user.id, tier_val)
     if not can_gen:
         await interaction.response.send_message(f"Cooldown: {remaining}s.", ephemeral=True)
         return
 
-    account = generate_account(tier)
+    account = generate_account(tier_val)
     if not account:
-        await interaction.response.send_message(f"Out of stock for {tier}.", ephemeral=True)
+        await interaction.response.send_message(f"Out of stock for {tier_val}.", ephemeral=True)
         return
 
     set_cooldown(interaction.user.id)
-    embed = black_embed(title=f"Account Generated ({tier.upper()})", description=f"`{account}`")
+    embed = black_embed(title=f"Account Generated ({tier_val.upper()})", description=f"`{account}`")
     await interaction.response.send_message(embed=embed)
 
+# Rest of the commands...
 @bot.tree.command(name="exoticpanel", description="Post the Exotic Generator panel")
 async def exoticpanel(interaction: discord.Interaction):
     if not (is_co_owner_plus(interaction.user) or discord.utils.get(interaction.user.roles, id=config["ROLES"]["RESELLER"])):
@@ -222,17 +222,13 @@ async def addreseller(interaction: discord.Interaction, member: discord.Member):
     await member.add_roles(role)
     await interaction.response.send_message(f"Added `{member.name}` as Reseller.")
 
-# ---- BUTTON HANDLERS ----
 @bot.event
 async def on_interaction(interaction: discord.Interaction):
     if interaction.type == discord.InteractionType.component:
         custom_id = interaction.data.get("custom_id")
-        
-        # Co-Owner+ Check
         if not is_co_owner_plus(interaction.user):
             await interaction.response.send_message(f"{config['EMOJIS']['CROSS']} Only **Co-Owner+** can generate accounts.", ephemeral=True)
             return
-
         if custom_id == "generate_exotic":
             if interaction.channel_id != config["CHANNELS"]["EXOTIC_PANEL"]:
                 await interaction.response.send_message("♱ Works in exotic-gen channel only!", ephemeral=True)
@@ -250,7 +246,6 @@ async def on_interaction(interaction: discord.Interaction):
                 return
             set_cooldown(interaction.user.id)
             await interaction.response.send_message(embed=black_embed(title="Exotic Account", description=f"`{acc}`"))
-
         elif custom_id == "generate_premium":
             if interaction.channel_id != config["CHANNELS"]["PREMIUM_PANEL"]:
                 await interaction.response.send_message("♱ Works in premium-gen channel only!", ephemeral=True)
@@ -269,9 +264,6 @@ async def on_interaction(interaction: discord.Interaction):
             set_cooldown(interaction.user.id)
             await interaction.response.send_message(embed=black_embed(title="Premium Account", description=f"`{acc}`"))
 
-# ================= RUN BOT =================
 if __name__ == "__main__":
-    if TOKEN:
-        bot.run(TOKEN)
-    else:
-        print("Please set the GEN_BOT_TOKEN environment variable.")
+    if TOKEN: bot.run(TOKEN)
+    else: print("Please set the GEN_BOT_TOKEN environment variable.")
