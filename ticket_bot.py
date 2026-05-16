@@ -78,10 +78,15 @@ class TicketView(discord.ui.View):
 async def on_ready():
     print(f"✅ Logged in as Ticket Bot: {bot.user}")
     try:
-        synced = await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
-        print(f"Synced {len(synced)} ticket commands")
+        # Syncing to the specific guild for instant results
+        synced_guild = await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
+        print(f"Synced {len(synced_guild)} guild-specific commands")
+        
+        # Also syncing globally just in case
+        synced_global = await bot.tree.sync()
+        print(f"Synced {len(synced_global)} global commands")
     except Exception as e:
-        print(e)
+        print(f"Sync error: {e}")
     bot.add_view(TicketView())
 
 @bot.tree.command(name="ticketpanel", description="Create a ticket support panel (Components V2)", guild=discord.Object(id=GUILD_ID))
