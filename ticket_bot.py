@@ -209,27 +209,33 @@ async def escalate(interaction: discord.Interaction, status: str):
         await interaction.followup.send("This command can only be used in a ticket channel.", ephemeral=True)
         return
         
-    base_name = interaction.channel.name.split("-", 1)[-1]
-    if base_name.startswith(("paid-", "waiting-", "claimed-")):
-        base_name = base_name.split("-", 1)[-1]
+    try:
+        base_name = interaction.channel.name
+        # Remove any existing status prefix to get the clean name
+        for prefix in ["ticket-", "paid-", "waiting-", "claimed-"]:
+            if base_name.startswith(prefix):
+                base_name = base_name[len(prefix):]
+                break
         
-    new_name = f"{status}-{base_name}"
-    await interaction.channel.edit(name=new_name)
-    
-    # Special logic for Paid status
-    if status == "paid":
-        owner_role = interaction.guild.get_role(OWNER_ROLE_ID)
-        staff_role = interaction.guild.get_role(STAFF_ROLE_ID)
+        new_name = f"{status}-{base_name}"
+        await interaction.channel.edit(name=new_name)
         
-        # Remove normal staff and add owners only
-        if staff_role:
-            await interaction.channel.set_permissions(staff_role, read_messages=False)
-        if owner_role:
-            await interaction.channel.set_permissions(owner_role, read_messages=True, send_messages=True, manage_messages=True)
+        # Special logic for Paid status
+        if status == "paid":
+            owner_role = interaction.guild.get_role(OWNER_ROLE_ID)
+            staff_role = interaction.guild.get_role(STAFF_ROLE_ID)
             
-        await interaction.followup.send(f"Ticket escalated to **{status.capitalize()}**. Only Owners can now see this channel. <@&{OWNER_ROLE_ID}>")
-    else:
-        await interaction.followup.send(f"Ticket escalated to **{status.capitalize()}**.")
+            # Remove normal staff and add owners only
+            if staff_role:
+                await interaction.channel.set_permissions(staff_role, read_messages=False)
+            if owner_role:
+                await interaction.channel.set_permissions(owner_role, read_messages=True, send_messages=True, manage_messages=True)
+                
+            await interaction.followup.send(f"✅ Ticket escalated to **{status.capitalize()}**. Only Owners can now see this channel. <@&{OWNER_ROLE_ID}>")
+        else:
+            await interaction.followup.send(f"✅ Ticket escalated to **{status.capitalize()}**.")
+    except Exception as e:
+        await interaction.followup.send(f"❌ An error occurred while escalating: {e}")
 
 @bot.tree.command(name="check-ticket-id", description="Retrieve a closed ticket's log and transcript", guild=discord.Object(id=GUILD_ID))
 async def check_ticket_id(interaction: discord.Interaction, ticket_id: str):
