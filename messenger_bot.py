@@ -9,10 +9,19 @@ GUILD_ID = 1504472803137814638
 EMBED_COLOR = 0x800080  # Purple
 CUSTOM_EMOJI_ID = 1504766603122966609
 
+CO_OWNER_ROLE_ID = 1505164077658406922
+
 # ================= BOT SETUP =================
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 bot = commands.Bot(command_prefix="m!", intents=intents)
+
+# ================= UTILS =================
+def is_authorized(interaction: discord.Interaction):
+    # Check for Co owner role or Administrator permission
+    has_role = any(role.id == CO_OWNER_ROLE_ID for role in interaction.user.roles)
+    return has_role or interaction.user.guild_permissions.administrator
 
 # ================= COMMANDS =================
 @bot.event
@@ -29,8 +38,8 @@ async def on_ready():
 @app_commands.describe(title="The title of the embed", text="The main message (use \n for new lines)")
 async def send_embed(interaction: discord.Interaction, title: str, text: str):
     # Permission check (Admin/Staff)
-    if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ You don't have permission to use this.", ephemeral=True)
+    if not is_authorized(interaction):
+        await interaction.response.send_message("❌ Only **Co owners** or higher can use this command.", ephemeral=True)
         return
 
     emoji_str = f"<a:Monster52:{CUSTOM_EMOJI_ID}>"
@@ -53,8 +62,8 @@ async def send_embed(interaction: discord.Interaction, title: str, text: str):
 
 @bot.tree.command(name="say", description="Make the bot say something", guild=discord.Object(id=GUILD_ID))
 async def say(interaction: discord.Interaction, message: str):
-    if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ You don't have permission to use this.", ephemeral=True)
+    if not is_authorized(interaction):
+        await interaction.response.send_message("❌ Only **Co owners** or higher can use this command.", ephemeral=True)
         return
         
     await interaction.channel.send(message)
