@@ -168,10 +168,10 @@ async def restock(interaction: discord.Interaction, tier: str, file: discord.Att
     save_json(ACCOUNTS_FILE, data)
     await interaction.response.send_message(f"Restocked {len(accs)} accounts to {tier}.")
 
-@bot.tree.command(name="livestock", description="Show stock")
+@bot.tree.command(name="livestock", description="Show available account counts")
 async def livestock(interaction: discord.Interaction):
     data = load_json(ACCOUNTS_FILE)
-    embed = black_embed(title="Livestock Report")
+    embed = black_embed(title=f"{config['EMOJIS']['LIVESTOCK']} Livestock Report {config['EMOJIS']['LIVESTOCK']}")
     for t in ["normal", "exotic", "premium"]:
         embed.add_field(name=t.capitalize(), value=f"`{len(data.get(t, []))}`", inline=True)
     await interaction.response.send_message(embed=embed)
