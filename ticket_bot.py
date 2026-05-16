@@ -138,11 +138,12 @@ async def ticketpanel(interaction: discord.Interaction):
 
 @bot.tree.command(name="close", description="Close the current ticket", guild=discord.Object(id=GUILD_ID))
 async def close_ticket(interaction: discord.Interaction):
+    await interaction.response.defer()
     if interaction.channel.category_id != TICKET_CATEGORY_ID and not any(x in interaction.channel.name for x in ["ticket-", "paid-", "waiting-", "claimed-"]):
-        await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
+        await interaction.followup.send("This command can only be used in a ticket channel.", ephemeral=True)
         return
 
-    await interaction.response.send_message("Closing ticket in 5 seconds...", ephemeral=False)
+    await interaction.followup.send("Closing ticket in 5 seconds...", ephemeral=False)
     
     # Generate transcript
     messages = [msg async for msg in interaction.channel.history(limit=500, oldest_first=True)]
@@ -158,32 +159,35 @@ async def close_ticket(interaction: discord.Interaction):
 
 @bot.tree.command(name="add_user", description="Add a user to the current ticket", guild=discord.Object(id=GUILD_ID))
 async def add_user(interaction: discord.Interaction, user: discord.Member):
+    await interaction.response.defer(ephemeral=True)
     if interaction.channel.category_id != TICKET_CATEGORY_ID and not any(x in interaction.channel.name for x in ["ticket-", "paid-", "waiting-", "claimed-"]):
-        await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
+        await interaction.followup.send("This command can only be used in a ticket channel.", ephemeral=True)
         return
         
     await interaction.channel.set_permissions(user, read_messages=True, send_messages=True, attach_files=True)
-    await interaction.response.send_message(f"Added {user.mention} to the ticket.")
+    await interaction.followup.send(f"Added {user.mention} to the ticket.")
 
 @bot.tree.command(name="remove_user", description="Remove a user from the current ticket", guild=discord.Object(id=GUILD_ID))
 async def remove_user(interaction: discord.Interaction, user: discord.Member):
+    await interaction.response.defer(ephemeral=True)
     if interaction.channel.category_id != TICKET_CATEGORY_ID and not any(x in interaction.channel.name for x in ["ticket-", "paid-", "waiting-", "claimed-"]):
-        await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
+        await interaction.followup.send("This command can only be used in a ticket channel.", ephemeral=True)
         return
     
     # Permission check for Co owner or Admin
     is_co_owner = any(role.name.lower() == "co owner" for role in interaction.user.roles)
     if not is_co_owner and not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Only **Co owners** or Administrators can remove users from tickets.", ephemeral=True)
+        await interaction.followup.send("❌ Only **Co owners** or Administrators can remove users from tickets.", ephemeral=True)
         return
         
     await interaction.channel.set_permissions(user, overwrite=None)
-    await interaction.response.send_message(f"Removed {user.mention} from the ticket.")
+    await interaction.followup.send(f"Removed {user.mention} from the ticket.")
 
 @bot.tree.command(name="rename-ticket", description="Rename the current ticket channel", guild=discord.Object(id=GUILD_ID))
 async def rename_ticket(interaction: discord.Interaction, new_name: str):
+    await interaction.response.defer(ephemeral=True)
     if interaction.channel.category_id != TICKET_CATEGORY_ID and not any(x in interaction.channel.name for x in ["ticket-", "paid-", "waiting-", "claimed-"]):
-        await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
+        await interaction.followup.send("This command can only be used in a ticket channel.", ephemeral=True)
         return
     
     # Format name
@@ -191,7 +195,7 @@ async def rename_ticket(interaction: discord.Interaction, new_name: str):
         new_name = f"ticket-{new_name}"
         
     await interaction.channel.edit(name=new_name)
-    await interaction.response.send_message(f"Ticket renamed to `{new_name}`.")
+    await interaction.followup.send(f"Ticket renamed to `{new_name}`.")
 
 @bot.tree.command(name="escalate", description="Change ticket status (Paid/Waiting/Claimed)", guild=discord.Object(id=GUILD_ID))
 @app_commands.choices(status=[
@@ -200,8 +204,9 @@ async def rename_ticket(interaction: discord.Interaction, new_name: str):
     app_commands.Choice(name="Claimed", value="claimed")
 ])
 async def escalate(interaction: discord.Interaction, status: str):
+    await interaction.response.defer()
     if interaction.channel.category_id != TICKET_CATEGORY_ID and not any(x in interaction.channel.name for x in ["ticket-", "paid-", "waiting-", "claimed-"]):
-        await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
+        await interaction.followup.send("This command can only be used in a ticket channel.", ephemeral=True)
         return
         
     base_name = interaction.channel.name.split("-", 1)[-1]
@@ -222,9 +227,9 @@ async def escalate(interaction: discord.Interaction, status: str):
         if owner_role:
             await interaction.channel.set_permissions(owner_role, read_messages=True, send_messages=True, manage_messages=True)
             
-        await interaction.response.send_message(f"Ticket escalated to **{status.capitalize()}**. Only Owners can now see this channel. <@&{OWNER_ROLE_ID}>")
+        await interaction.followup.send(f"Ticket escalated to **{status.capitalize()}**. Only Owners can now see this channel. <@&{OWNER_ROLE_ID}>")
     else:
-        await interaction.response.send_message(f"Ticket escalated to **{status.capitalize()}**.")
+        await interaction.followup.send(f"Ticket escalated to **{status.capitalize()}**.")
 
 @bot.tree.command(name="check-ticket-id", description="Retrieve a closed ticket's log and transcript", guild=discord.Object(id=GUILD_ID))
 async def check_ticket_id(interaction: discord.Interaction, ticket_id: str):
