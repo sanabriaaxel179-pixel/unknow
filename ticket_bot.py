@@ -11,6 +11,9 @@ TOKEN = os.getenv("TICKET_BOT_TOKEN")
 GUILD_ID = 1504472803137814638
 TICKET_CATEGORY_ID = 1505253351846183073
 HEAD_OF_SERVER_ROLE_ID = 1504482136667979877
+CO_OWNER_ROLE_ID = 1505164077658406922
+RESELLER_ROLE_ID = 1504763361169244211
+OWNER_ROLE_ID = 1504474785906950346
 STAFF_ROLE_ID = 1504475554920009738 # Keeping this for basic staff access
 
 EMBED_COLOR = 0x800080  # Purple
@@ -70,7 +73,8 @@ class TicketDropdown(discord.ui.Select):
             description="Staff will be with you shortly.\n**Brought to Life by !avOid/kxrried**",
             color=EMBED_COLOR
         )
-        await ticket_channel.send(content=f"{interaction.user.mention} <@&{HEAD_OF_SERVER_ROLE_ID}>", embed=embed)
+        ping_content = f"{interaction.user.mention} <@&{HEAD_OF_SERVER_ROLE_ID}> <@&{CO_OWNER_ROLE_ID}> <@&{RESELLER_ROLE_ID}> <@&{OWNER_ROLE_ID}>"
+        await ticket_channel.send(content=ping_content, embed=embed)
         await interaction.followup.send(f"Ticket created: {ticket_channel.mention}", ephemeral=True)
 
 
