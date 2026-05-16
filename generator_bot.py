@@ -224,7 +224,8 @@ async def on_interaction(interaction: discord.Interaction):
 
         role_id = config["ROLES"].get(tier.upper())
         if not (discord.utils.get(interaction.user.roles, id=role_id) or is_co_owner_plus(interaction.user)):
-            await interaction.response.send_message(f"{config['EMOJIS']['CROSS']} You need the **{tier.capitalize()}** role to use this panel.", ephemeral=True)
+            msg = "u must have exotic role" if tier == "exotic" else "u must have prem gen"
+            await interaction.response.send_message(f"{config['EMOJIS']['CROSS']} {msg}", ephemeral=True)
             return
 
         panel_channel_id = config["CHANNELS"].get(f"{tier.upper()}_PANEL")
