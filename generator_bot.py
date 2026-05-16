@@ -47,6 +47,8 @@ def generate_key_string():
 # ================= COOLDOWN HANDLER =================
 cooldowns = {}
 def check_cooldown(user_id, tier="normal"):
+    if config.get("DEFAULT_COOLDOWN", 0) == 0:
+        return True, 0
     cd = config.get("DEFAULT_COOLDOWN", 0)
     if tier == "exotic": cd = 50
     elif tier == "premium": cd = 60
@@ -75,8 +77,9 @@ def generate_account(tier):
 async def on_ready():
     print(f"✅ Generator Bot logged in as {bot.user}")
     try:
-        await bot.tree.sync()
-        print("Synced commands globally")
+        guild = discord.Object(id=config["GUILD_ID"])
+        synced = await bot.tree.sync(guild=guild)
+        print(f"Synced {len(synced)} commands to Guild {config['GUILD_ID']}")
     except Exception as e:
         print(f"Sync error: {e}")
 
