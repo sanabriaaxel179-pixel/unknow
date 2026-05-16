@@ -122,6 +122,19 @@ async def rep(interaction: discord.Interaction, user: discord.Member, rating: in
 async def vouch(interaction: discord.Interaction, user: discord.Member, rating: int, message: str):
     await rep(interaction, user, rating, message)
 
+@bot.tree.command(name="reps", description="View reputations for a user")
+async def view_reps(interaction: discord.Interaction, user: discord.Member):
+    reps = load_json(REPS_FILE)
+    user_id = str(user.id)
+    if user_id not in reps or not reps[user_id]:
+        await interaction.response.send_message(f"No reputations found for {user.mention}.", ephemeral=True)
+        return
+    embed = black_embed(title=f"Reputations for {user.display_name}")
+    for r in reps[user_id][-5:]:
+        stars = "⭐" * r["rating"]
+        embed.add_field(name=f"Rating: {stars}", value=f"\"{r['message']}\"\n— <@{r['voucher']}>", inline=False)
+    await interaction.response.send_message(embed=embed)
+
 # ---- Moderation ----
 @bot.tree.command(name="ban", description="Ban a user from the server")
 @app_commands.describe(member="The member to ban", reason="Reason for the ban")
@@ -144,7 +157,6 @@ async def kick(interaction: discord.Interaction, member: discord.Member, reason:
     if not interaction.user.guild_permissions.kick_members:
         await interaction.response.send_message("You don't have permission to kick members.", ephemeral=True)
         return
-    
     try:
         await member.kick(reason=reason)
         embed = black_embed(title="User Kicked", description=f"**User:** {member.mention}\n**Reason:** {reason}")
@@ -152,6 +164,13 @@ async def kick(interaction: discord.Interaction, member: discord.Member, reason:
         await interaction.response.send_message(embed=embed)
     except Exception as e:
         await interaction.response.send_message(f"Failed to kick member: {e}", ephemeral=True)
+
+@bot.tree.command(name="clear", description="Clear messages")
+@app_commands.default_permissions(manage_messages=True)
+async def clear(interaction: discord.Interaction, amount: int):
+    await interaction.response.defer(ephemeral=True)
+    deleted = await interaction.channel.purge(limit=amount)
+    await interaction.followup.send(f"Cleared `{len(deleted)}` messages.", ephemeral=True)
 
 # ---- Custom Moderation (Example of synced/custom) ----
 @bot.tree.command(name="custom_ban", description="Custom ban command with special formatting")
@@ -177,6 +196,35 @@ async def unbypass_antiraid(interaction: discord.Interaction, user: discord.User
         await interaction.response.send_message("No permission.", ephemeral=True)
         return
     await interaction.response.send_message(f"{user.mention} removed from anti-raid bypass list.", ephemeral=True)
+
+# ---- Channel Management ----
+@bot.tree.command(name="lock", description="Lock channel")
+@app_commands.default_permissions(manage_channels=True)
+async def lock(interaction: discord.Interaction):
+    await interaction.channel.set_permissions(interaction.guild.default_role, send_messages=False)
+    await interaction.response.send_message(f"🔒 {interaction.channel.mention} locked.")
+
+@bot.tree.command(name="unlock", description="Unlock channel")
+@app_commands.default_permissions(manage_channels=True)
+async def unlock(interaction: discord.Interaction):
+    await interaction.channel.set_permissions(interaction.guild.default_role, send_messages=True)
+    await interaction.response.send_message(f"🔓 {interaction.channel.mention} unlocked.")
+
+@bot.tree.command(name="slowmode", description="Set slowmode")
+@app_commands.default_permissions(manage_channels=True)
+async def slowmode(interaction: discord.Interaction, seconds: int):
+    await interaction.channel.edit(slowmode_delay=seconds)
+    await interaction.response.send_message(f"Slowmode: `{seconds}`s.")
+
+@bot.tree.command(name="nuke", description="Nuke channel")
+async def nuke(interaction: discord.Interaction):
+    if not discord.utils.get(interaction.user.roles, id=config["ROLES"]["OWNER"]):
+        await interaction.response.send_message("Owner only.", ephemeral=True)
+        return
+    new = await interaction.channel.clone()
+    await interaction.channel.delete()
+    await new.edit(position=interaction.channel.position)
+    await new.send(embed=black_embed(title="Channel Nuked"))
 
 # ---- Scammer Lookup ----
 @bot.tree.command(name="scammer", description="Lookup user information in the scammer database")
