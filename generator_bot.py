@@ -197,17 +197,40 @@ async def premium_generate_panel(interaction: discord.Interaction):
 @bot.event
 async def on_interaction(interaction: discord.Interaction):
     if interaction.type == discord.InteractionType.component:
-        cid = interaction.data.get("custom_id")
-        if not is_co_owner_plus(interaction.user): return
-        tier = "exotic" if "exotic" in cid else "premium"
+        custom_id = interaction.data.get("custom_id")
+        
+        # Determine tier from custom_id
+        tier = None
+        if "exotic" in custom_id: tier = "exotic"
+        elif "premium" in custom_id: tier = "premium"
+        
+        if not tier: return
+
+        # Check if user has the specific tier role OR is Co-Owner+
+        role_id = config["ROLES"].get(tier.upper())
+        if not (discord.utils.get(interaction.user.roles, id=role_id) or is_co_owner_plus(interaction.user)):
+            await interaction.response.send_message(f"{config['EMOJIS']['CROSS']} You need the **{tier.capitalize()}** role to use this panel.", ephemeral=True)
+            return
+
+        # Channel restriction check
+        panel_channel_id = config["CHANNELS"].get(f"{tier.upper()}_PANEL")
+        if interaction.channel_id != panel_channel_id:
+            await interaction.response.send_message(f"♱ This button only works in the <#{panel_channel_id}> channel!", ephemeral=True)
+            return
+            
         can_gen, rem = check_cooldown(interaction.user.id, tier)
         if not can_gen:
-            await interaction.response.send_message(f"Cooldown: {rem}s.", ephemeral=True)
+            await interaction.response.send_message(f"{config['EMOJIS']['TIMER']} Cooldown: {rem}s left.", ephemeral=True)
             return
+            
         acc = generate_account(tier)
-        if acc:
-            set_cooldown(interaction.user.id)
-            await interaction.response.send_message(embed=black_embed(title=f"{tier.capitalize()} Account", description=f"`{acc}`"))
+        if not acc:
+            await interaction.response.send_message(f"{config['EMOJIS']['CROSS']} Out of stock for **{tier}**.", ephemeral=True)
+            return
+            
+        set_cooldown(interaction.user.id)
+        embed = black_embed(title=f"{tier.capitalize()} Account", description=f"`{acc}`")
+        await interaction.response.send_message(embed=embed)
 
 if __name__ == "__main__":
     if TOKEN: bot.run(TOKEN)
