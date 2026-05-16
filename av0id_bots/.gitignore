@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+reps.json
+scammers.json
+accounts.json

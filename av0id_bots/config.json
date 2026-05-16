@@ -1,0 +1,33 @@
+{
+    "GUILD_ID": 1504472803137814638,
+    "ROLES": {
+        "OWNER": 1504474785906950346,
+        "CO_OWNER": 1505164077658406922,
+        "RESELLER": 1504763361169244211,
+        "EXOTIC": 1504763516803092512,
+        "PREMIUM": 1504763571362336849
+    },
+    "CHANNELS": {
+        "EXOTIC_PANEL": 1504498750155002042,
+        "PREMIUM_PANEL": 1504474305851953202,
+        "REVIEWS": 1504481530024562739,
+        "WELCOME": 1504473546435596429
+    },
+    "EMOJIS": {
+        "CHECK": "<a:Clock1:1504765854133260340>",
+        "CROSS": "<a:20819bloodrip:1504766150670815262>",
+        "KEY": "<a:key:1504765531629027338>",
+        "LIVESTOCK": "<a:globe:1504764717451710484>",
+        "TIMER": "<a:Clock1:1504765854133260340>",
+        "STAR": "<a:81437star:1504766360947916930>",
+        "PREMIUM": "<a:Monster52:1504766603122966609>",
+        "EXOTIC": "<a:Monster52:1504766603122966609>"
+    },
+    "LINKS": {
+        "DISCORD": "https://discord.gg/VAFukzhU4",
+        "SUPPORT": "https://discord.gg/VAFukzhU4"
+    },
+    "DEFAULT_COOLDOWN": 0,
+    "BOT_NAME": "! av0id/kxrried",
+    "THEME_COLOR": 0x000000
+}
