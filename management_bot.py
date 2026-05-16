@@ -59,8 +59,8 @@ async def on_member_join(member):
         channel = bot.get_channel(welcome_channel_id)
         if channel:
             embed = black_embed(
-                title=f"{config['EMOJIS']['LIVESTOCK']} Welcome to {config['BOT_NAME']} {config['EMOJIS']['LIVESTOCK']}",
-                description=f"Welcome {member.mention} to the server! We hope you enjoy your stay."
+                title=f"{config['EMOJIS']['LIVESTOCK']} Welcome to kxrried World {config['EMOJIS']['LIVESTOCK']}",
+                description=f"Welcome {member.mention} to kxrried World! We hope you enjoy your stay."
             )
             embed.set_thumbnail(url=member.display_avatar.url)
             embed.add_field(name="Member Count", value=f"{member.guild.member_count}", inline=True)
@@ -70,13 +70,13 @@ async def on_member_join(member):
     # Private DM Welcome
     try:
         dm_embed = black_embed(
-            title=f"Welcome to {config['BOT_NAME']}!",
-            description=f"Hello {member.name}, welcome to the server!\n\n**Server Link:** {config['LINKS']['DISCORD']}\n**Support:** {config['LINKS']['SUPPORT']}"
+            title="Welcome to kxrried World!",
+            description=f"Hello {member.name}, welcome to kxrried World!\n\n**Server Link:** {config['LINKS']['DISCORD']}\n**Support:** {config['LINKS']['SUPPORT']}"
         )
         dm_embed.set_thumbnail(url=member.guild.icon.url if member.guild.icon else None)
         await member.send(embed=dm_embed)
     except:
-        pass # User has DMs closed
+        pass
 
 # ================= COMMANDS =================
 
