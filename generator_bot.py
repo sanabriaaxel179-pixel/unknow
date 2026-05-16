@@ -179,23 +179,37 @@ async def livestock(interaction: discord.Interaction):
         embed.add_field(name=t.capitalize(), value=f"`{len(data.get(t, []))}`", inline=True)
     await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="exoticpanel", description="Post Exotic panel")
+@bot.tree.command(name="exoticpanel", description="Post the Exotic Generator panel")
 async def exoticpanel(interaction: discord.Interaction):
-    if not is_co_owner_plus(interaction.user): return
+    await interaction.response.defer(ephemeral=True)
+    if not (is_co_owner_plus(interaction.user) or discord.utils.get(interaction.user.roles, id=config["ROLES"]["RESELLER"])):
+        await interaction.followup.send("No permission.", ephemeral=True)
+        return
     channel = bot.get_channel(config["CHANNELS"]["EXOTIC_PANEL"])
+    if not channel:
+        await interaction.followup.send("Channel not found.", ephemeral=True)
+        return
+    embed = black_embed(title=f"{config['EMOJIS']['EXOTIC']} **EXOTIC GENERATOR** {config['EMOJIS']['EXOTIC']}", description="Generate high-quality R6 accounts every **50 seconds**.")
     view = discord.ui.View()
-    view.add_item(discord.ui.Button(label="Generate Exotic", style=discord.ButtonStyle.primary, custom_id="generate_exotic"))
-    await channel.send(embed=black_embed(title="Exotic Generator"), view=view)
-    await interaction.response.send_message("Posted.", ephemeral=True)
+    view.add_item(discord.ui.Button(label="Generate Exotic Account", style=discord.ButtonStyle.primary, custom_id="generate_exotic"))
+    await channel.send(embed=embed, view=view)
+    await interaction.followup.send("Exotic panel posted.", ephemeral=True)
 
-@bot.tree.command(name="premium_generate_panel", description="Post Premium panel")
+@bot.tree.command(name="premium_generate_panel", description="Post the Premium Generator panel")
 async def premium_generate_panel(interaction: discord.Interaction):
-    if not is_co_owner_plus(interaction.user): return
+    await interaction.response.defer(ephemeral=True)
+    if not (is_co_owner_plus(interaction.user) or discord.utils.get(interaction.user.roles, id=config["ROLES"]["RESELLER"])):
+        await interaction.followup.send("No permission.", ephemeral=True)
+        return
     channel = bot.get_channel(config["CHANNELS"]["PREMIUM_PANEL"])
+    if not channel:
+        await interaction.followup.send("Channel not found.", ephemeral=True)
+        return
+    embed = black_embed(title=f"{config['EMOJIS']['PREMIUM']} **PREMIUM GENERATOR** {config['EMOJIS']['PREMIUM']}", description="Generate **elite** R6 accounts every **1 minute**.")
     view = discord.ui.View()
-    view.add_item(discord.ui.Button(label="Generate Premium", style=discord.ButtonStyle.success, custom_id="generate_premium"))
-    await channel.send(embed=black_embed(title="Premium Generator"), view=view)
-    await interaction.response.send_message("Posted.", ephemeral=True)
+    view.add_item(discord.ui.Button(label="Generate Premium Account", style=discord.ButtonStyle.success, custom_id="generate_premium"))
+    await channel.send(embed=embed, view=view)
+    await interaction.followup.send("Premium panel posted.", ephemeral=True)
 
 @bot.event
 async def on_interaction(interaction: discord.Interaction):
