@@ -22,11 +22,26 @@ bot = commands.Bot(command_prefix="b!", intents=intents)
 async def on_ready():
     print(f"✅ Logged in as Boost Bot: {bot.user}")
     try:
-        await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
+        guild = discord.Object(id=GUILD_ID)
+        bot.tree.copy_global_to(guild=guild)
+        await bot.tree.sync(guild=guild)
         await bot.tree.sync()
         print("Boost commands synced!")
     except Exception as e:
         print(f"Sync error: {e}")
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def sync(ctx):
+    """Force sync commands using a prefix"""
+    try:
+        guild = discord.Object(id=GUILD_ID)
+        bot.tree.copy_global_to(guild=guild)
+        await bot.tree.sync(guild=guild)
+        await bot.tree.sync()
+        await ctx.send("✅ **Boost Bot commands have been force-synced!** Try typing `/` now.")
+    except Exception as e:
+        await ctx.send(f"❌ Sync failed: {e}")
 
 # --- Core Boosting ---
 @bot.tree.command(name="boost-server", description="Boost a Discord server with Nitro Tokens", guild=discord.Object(id=GUILD_ID))
