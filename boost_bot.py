@@ -183,9 +183,63 @@ async def extend_handler(request):
 
     return web.HTTPFound('/')
 
+async def sellapp_webhook_handler(request):
+    try:
+        data = await request.json()
+    except Exception:
+        return web.Response(text="Invalid JSON", status=400)
+
+    try:
+        # SellApp sends order data - extract the delivered serial and Discord ID
+        order = data.get("data", data)  # Handle both wrapped and unwrapped payloads
+        
+        # Get the serial/key that SellApp delivered to the buyer
+        serials = order.get("serials", [])
+        if not serials:
+            # Try alternate field names
+            serials = order.get("delivered_serials", [])
+        key = serials[0] if serials else None
+        
+        # Get Discord ID from the custom checkout field
+        discord_id = None
+        custom_fields = order.get("custom_fields", [])
+        for field in custom_fields:
+            val = field.get("value", "")
+            if val and val.strip().isdigit():
+                discord_id = val.strip()
+                break
+        
+        # Get product/duration name for the DM message
+        product_title = order.get("product", {}).get("title", "Boost Bot License")
+        
+        if discord_id and key:
+            try:
+                user = await bot.fetch_user(int(discord_id))
+                
+                embed = discord.Embed(
+                    title=f"<a:Monster52:1504766603122966609> ! av0id/kxrried <a:Monster52:1504766603122966609>",
+                    description=(
+                        f"**Thank you for your purchase of {product_title}!**\n\n"
+                        f"Your License Key:\n"
+                        f"```\n{key}\n```\n"
+                        f"Use `/redeem_bootbot_license {key}` in the server to activate.\n\n"
+                        f"Need Help? go to [Support](https://discord.gg/w8mH7DPpj) for more."
+                    ),
+                    color=discord.Color.purple()
+                )
+                await user.send(embed=embed)
+                print(f"[SellApp] DM sent to {discord_id} with key {key}")
+            except Exception as e:
+                print(f"[SellApp] Failed to DM user {discord_id}: {e}")
+    except Exception as e:
+        print(f"[SellApp] Webhook error: {e}")
+    
+    return web.Response(text="OK", status=200)
+
 app.router.add_get('/', dashboard_handler)
 app.router.add_post('/terminate', terminate_handler)
 app.router.add_post('/extend', extend_handler)
+app.router.add_post('/sellapp-webhook', sellapp_webhook_handler)
 
 # ================= BOT SETUP =================
 intents = discord.Intents.default()
