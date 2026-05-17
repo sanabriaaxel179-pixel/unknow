@@ -621,11 +621,11 @@ class AutobuyView(discord.ui.View):
         
         base_url = "https://av0idkxrried.sell.app"
         
-        self.add_item(discord.ui.Button(label="1 Day ($3.50)", url=base_url))
-        self.add_item(discord.ui.Button(label="1 Week ($9.00)", url=base_url))
-        self.add_item(discord.ui.Button(label="1 Month ($15.00)", url=base_url))
-        self.add_item(discord.ui.Button(label="1 Year ($25.00)", url=base_url))
-        self.add_item(discord.ui.Button(label="Lifetime ($30.00)", url=base_url))
+        self.add_item(discord.ui.Button(label="1 Day ($3.50)", url="https://av0idkxrried.sell.app/product/av0idkxrried-boostbot-v3-1-day-key"))
+        self.add_item(discord.ui.Button(label="1 Week ($9.00)", url="https://av0idkxrried.sell.app/product/product-1779006309"))
+        self.add_item(discord.ui.Button(label="1 Month ($15.00)", url="https://av0idkxrried.sell.app/product/product-1779007495"))
+        self.add_item(discord.ui.Button(label="1 Year ($25.00)", url="https://av0idkxrried.sell.app/product/product-1779007687"))
+        self.add_item(discord.ui.Button(label="Lifetime ($30.00)", url="https://av0idkxrried.sell.app/product/product-1779007819"))
 
 @bot.tree.command(name="setup-autobuy", description="Setup autobuy integration for your server", guild=discord.Object(id=GUILD_ID))
 async def setup_autobuy(interaction: discord.Interaction):
