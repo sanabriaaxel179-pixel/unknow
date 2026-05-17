@@ -482,9 +482,44 @@ async def dashboard(interaction: discord.Interaction):
         
     await interaction.response.send_message(f"🔗 **Dashboard is live at:** {url}", ephemeral=True)
 
+class AutobuyView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        
+        base_url = "https://av0idkxrried.sell.app"
+        
+        self.add_item(discord.ui.Button(label="1 Day ($3.50)", url=base_url))
+        self.add_item(discord.ui.Button(label="1 Week ($9.00)", url=base_url))
+        self.add_item(discord.ui.Button(label="1 Month ($15.00)", url=base_url))
+        self.add_item(discord.ui.Button(label="1 Year ($25.00)", url=base_url))
+        self.add_item(discord.ui.Button(label="Lifetime ($30.00)", url=base_url))
+
 @bot.tree.command(name="setup-autobuy", description="Setup autobuy integration for your server", guild=discord.Object(id=GUILD_ID))
 async def setup_autobuy(interaction: discord.Interaction):
-    await interaction.response.send_message("🛒 Starting Autobuy setup...", ephemeral=True)
+    # Only allow Admin to setup panel
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ You do not have permission to use this command.", ephemeral=True)
+        return
+        
+    embed = discord.Embed(
+        title="<a:Monster52:1504766603122966609> ! av0id/kxrried <a:Monster52:1504766603122966609>",
+        description=(
+            "The only payment method we take is:\n"
+            "<:PayPal:1505246719187615836> **PayPal**\n\n"
+            "If you ask for another payment method we will close the ticket, as it is Stated that these are the ONLY that we accept.\n\n"
+            "**Prices:**\n"
+            "• 1 Day: $3.50\n"
+            "• 1 Week: $9.00\n"
+            "• 1 Month: $15.00\n"
+            "• 1 Year: $25.00\n"
+            "• Lifetime: $30.00\n\n"
+            "[Join Support Server](https://discord.gg/w8mH7DPpj)"
+        ),
+        color=discord.Color.purple()
+    )
+    
+    await interaction.response.send_message("✅ Autobuy panel created!", ephemeral=True)
+    await interaction.channel.send(embed=embed, view=AutobuyView())
 
 @bot.tree.command(name="invoice-panel", description="Open the invoice lookup panel", guild=discord.Object(id=GUILD_ID))
 async def invoice_panel(interaction: discord.Interaction):
