@@ -21,6 +21,9 @@ OWNER_ROLE_ID = 1504474785906950346
 CO_OWNER_ROLE_ID = 1505164077658406922
 RESELLER_ROLE_ID = 1504763361169244211
 
+# Sales log Discord webhook
+SALES_LOG_WEBHOOK = "https://discord.com/api/webhooks/1505489417828171858/u7auFqrhuZrVNf3ZvyubP6RJBq2U5frkFGAdcHCM4R3Cyz33NbNHOe84pnZVmycJUnaV"
+
 # ================= DATABASE SETUP =================
 def init_db():
     conn = sqlite3.connect("boostbot.db")
@@ -190,47 +193,77 @@ async def sellapp_webhook_handler(request):
         return web.Response(text="Invalid JSON", status=400)
 
     try:
-        # SellApp sends order data - extract the delivered serial and Discord ID
-        order = data.get("data", data)  # Handle both wrapped and unwrapped payloads
+        # SellApp can send data in multiple formats depending on channel type
+        # Try raw order format first
+        order = data.get("data", data)
         
-        # Get the serial/key that SellApp delivered to the buyer
-        serials = order.get("serials", [])
-        if not serials:
-            # Try alternate field names
-            serials = order.get("delivered_serials", [])
+        # Try to get serial key
+        serials = order.get("serials") or order.get("delivered_serials") or []
         key = serials[0] if serials else None
         
-        # Get Discord ID from the custom checkout field
+        # Try to get Discord ID from custom fields
         discord_id = None
         custom_fields = order.get("custom_fields", [])
-        for field in custom_fields:
-            val = field.get("value", "")
-            if val and val.strip().isdigit():
-                discord_id = val.strip()
-                break
+        if isinstance(custom_fields, list):
+            for field in custom_fields:
+                val = str(field.get("value", "")).strip()
+                if val.isdigit() and len(val) > 10:  # Discord IDs are 17-19 digits
+                    discord_id = val
+                    break
         
-        # Get product/duration name for the DM message
-        product_title = order.get("product", {}).get("title", "Boost Bot License")
+        # Also check top-level fields
+        if not discord_id:
+            for key_name in ["discord_id", "discord", "user_id"]:
+                val = str(order.get(key_name, "")).strip()
+                if val.isdigit() and len(val) > 10:
+                    discord_id = val
+                    break
         
-        if discord_id and key:
+        # Get product name
+        product_title = (
+            order.get("product", {}).get("title") or 
+            order.get("product_title") or 
+            "Boost Bot License"
+        )
+        
+        # Get the actual key variable (shadowed above, re-assign)
+        license_key = serials[0] if serials else None
+        
+        if discord_id and license_key:
             try:
                 user = await bot.fetch_user(int(discord_id))
-                
                 embed = discord.Embed(
                     title=f"<a:Monster52:1504766603122966609> ! av0id/kxrried <a:Monster52:1504766603122966609>",
                     description=(
                         f"**Thank you for your purchase of {product_title}!**\n\n"
                         f"Your License Key:\n"
-                        f"```\n{key}\n```\n"
-                        f"Use `/redeem_bootbot_license {key}` in the server to activate.\n\n"
+                        f"```\n{license_key}\n```\n"
+                        f"Use `/redeem_bootbot_license {license_key}` in the server to activate.\n\n"
                         f"Need Help? go to [Support](https://discord.gg/w8mH7DPpj) for more."
                     ),
                     color=discord.Color.purple()
                 )
                 await user.send(embed=embed)
-                print(f"[SellApp] DM sent to {discord_id} with key {key}")
+                print(f"[SellApp] ✅ DM sent to {discord_id} with key {license_key}")
+                
+                # Post sales log to Discord channel via webhook
+                import aiohttp as _aiohttp
+                log_embed = {
+                    "title": "💰 New Sale!",
+                    "description": (
+                        f"**Product:** {product_title}\n"
+                        f"**Key:** ||{license_key}||\n"
+                        f"**Buyer Discord ID:** {discord_id}"
+                    ),
+                    "color": 0x800080
+                }
+                async with _aiohttp.ClientSession() as wh_session:
+                    await wh_session.post(SALES_LOG_WEBHOOK, json={"embeds": [log_embed]})
+                    
             except Exception as e:
-                print(f"[SellApp] Failed to DM user {discord_id}: {e}")
+                print(f"[SellApp] ❌ Failed to DM user {discord_id}: {e}")
+        else:
+            print(f"[SellApp] ⚠️ Could not extract discord_id or key from payload: {data}")
     except Exception as e:
         print(f"[SellApp] Webhook error: {e}")
     
