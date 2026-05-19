@@ -205,7 +205,7 @@ async def livestock(interaction: discord.Interaction):
 @bot.tree.command(name="exoticpanel", description="Post the Exotic Generator panel")
 async def exoticpanel(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
-    if not (is_co_owner_plus(interaction.user) or discord.utils.get(interaction.user.roles, id=config["ROLES"]["RESELLER"])):
+    if not (discord.utils.get(interaction.user.roles, id=config["ROLES"]["OWNER"]) or discord.utils.get(interaction.user.roles, id=config["ROLES"]["CO_OWNER"])):
         await interaction.followup.send("No permission.", ephemeral=True)
         return
     channel = bot.get_channel(config["CHANNELS"]["EXOTIC_PANEL"])
@@ -221,7 +221,7 @@ async def exoticpanel(interaction: discord.Interaction):
 @bot.tree.command(name="premium_generate_panel", description="Post the Premium Generator panel")
 async def premium_generate_panel(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
-    if not (is_co_owner_plus(interaction.user) or discord.utils.get(interaction.user.roles, id=config["ROLES"]["RESELLER"])):
+    if not (discord.utils.get(interaction.user.roles, id=config["ROLES"]["OWNER"]) or discord.utils.get(interaction.user.roles, id=config["ROLES"]["CO_OWNER"])):
         await interaction.followup.send("No permission.", ephemeral=True)
         return
     channel = bot.get_channel(config["CHANNELS"]["PREMIUM_PANEL"])
