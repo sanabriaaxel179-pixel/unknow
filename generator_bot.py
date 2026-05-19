@@ -156,6 +156,29 @@ async def generate(interaction: discord.Interaction):
         await interaction.response.send_message(f"No {tier} accounts left!", ephemeral=True)
         return
     set_cooldown(interaction.user.id)
+    
+    # Send to tier-specific channel
+    channel_key = f"{tier.upper()}_PANEL"
+    if channel_key in config["CHANNELS"]:
+        channel = bot.get_channel(config["CHANNELS"][channel_key])
+        if channel:
+            embed = black_embed(title=f"Account Generated ({tier.upper()})", description=f"`{acc}`")
+            embed.add_field(name="User", value=interaction.user.mention, inline=True)
+            embed.timestamp = datetime.now()
+            try:
+                await channel.send(embed=embed)
+            except:
+                pass
+    
+    # Send to DM
+    try:
+        dm_embed = black_embed(title=f"Account Generated ({tier.upper()})", description=f"`{acc}`")
+        dm_embed.set_footer(text=f"Requested from {interaction.channel.name} | {config['BOT_NAME']}")
+        dm_embed.timestamp = datetime.now()
+        await interaction.user.send(embed=dm_embed)
+    except:
+        pass
+    
     await interaction.response.send_message(embed=black_embed(title=f"Account Generated ({tier.upper()})", description=f"`{acc}`"))
 
 @bot.tree.command(name="restock", description="Restock accounts")
@@ -249,15 +272,33 @@ async def on_interaction(interaction: discord.Interaction):
         emoji = config['EMOJIS']['EXOTIC'] if tier == "exotic" else config['EMOJIS']['PREMIUM']
         
         # Create embed for DM
-        embed = black_embed(
+        dm_embed = black_embed(
             title=f"{emoji} {tier.capitalize()} Account Generated {emoji}",
             description=f"**Account:** `{acc}`"
         )
-        embed.set_footer(text=f"Requested by {interaction.user.display_name} | {config['BOT_NAME']}")
-        embed.timestamp = datetime.now()
+        dm_embed.set_footer(text=f"Requested by {interaction.user.display_name} | {config['BOT_NAME']}")
+        dm_embed.timestamp = datetime.now()
 
+        # Send to tier-specific channel
+        channel_key = f"{tier.upper()}_PANEL"
+        if channel_key in config["CHANNELS"]:
+            channel = bot.get_channel(config["CHANNELS"][channel_key])
+            if channel:
+                channel_embed = black_embed(
+                    title=f"{emoji} {tier.capitalize()} Account Generated {emoji}",
+                    description=f"**Account:** `{acc}`"
+                )
+                channel_embed.add_field(name="User", value=interaction.user.mention, inline=True)
+                channel_embed.set_footer(text=f"{config['BOT_NAME']}")
+                channel_embed.timestamp = datetime.now()
+                try:
+                    await channel.send(embed=channel_embed)
+                except:
+                    pass
+
+        # Send to DM
         try:
-            await interaction.user.send(embed=embed)
+            await interaction.user.send(embed=dm_embed)
             await interaction.response.send_message(f"{config['EMOJIS']['CHECK']} Success! Check your DMs for your **{tier.capitalize()}** account.", ephemeral=True)
         except discord.Forbidden:
             await interaction.response.send_message(f"{config['EMOJIS']['CROSS']} I couldn't DM you! Please open your DMs and try again.", ephemeral=True)
